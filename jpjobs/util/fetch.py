@@ -9,7 +9,7 @@ import httpx
 
 
 DEFAULT_UA = (
-    "jpjobs/0.3 (+https://github.com/Kaedeeeeeeeeee/jp-job-data; "
+    "jpjobs/0.4 (+https://github.com/Kaedeeeeeeeeee/jp-job-data; "
     "responsible research crawler)"
 )
 

@@ -91,6 +91,9 @@ class SourceStats:
     filtered: int = 0
     enriched: int = 0
     error: Optional[str] = None
+    pages_fetched: int = 0
+    pagination_stop_reasons: List[str] = field(default_factory=list)
+    coverage_complete: Optional[bool] = None
 
 
 @dataclass

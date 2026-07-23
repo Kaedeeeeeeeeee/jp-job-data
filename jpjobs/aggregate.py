@@ -7,7 +7,7 @@ import importlib
 import sys
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Callable, Optional
 
 from jpjobs.enrich import DetailStats, enrich_jobs
@@ -110,6 +110,9 @@ class SourceOutcome:
     jobs: list[Job]
     status: SourceStatus
     error: str | None = None
+    pages_fetched: int = 0
+    pagination_stop_reasons: list[str] | None = None
+    coverage_complete: bool | None = None
 
 
 def _status_for_error(error: str) -> SourceStatus:
@@ -129,6 +132,31 @@ async def _run_source(module, opts: dict, ctx: Ctx) -> SourceOutcome:
     try:
         ctx.emit("source.start", source=module.name)
         jobs = await module.scan(opts, ctx)
+        source_events = [
+            event
+            for event in ctx.events[event_start:]
+            if event.get("source") == module.name
+        ]
+        pages_fetched = sum(
+            event.get("event") == "source.page" for event in source_events
+        )
+        pagination_events = [
+            event
+            for event in source_events
+            if event.get("event") == "source.pagination_stop"
+        ]
+        pagination_stop_reasons = list(
+            dict.fromkeys(
+                str(event.get("reason"))
+                for event in pagination_events
+                if event.get("reason")
+            )
+        )
+        coverage_complete = (
+            all(event.get("coverage_complete") is True for event in pagination_events)
+            if pagination_events
+            else None
+        )
         errors = ctx.source_errors(module.name, event_start)
         if errors:
             status: SourceStatus = "partial" if jobs else _status_for_error(errors[-1])
@@ -145,12 +173,26 @@ async def _run_source(module, opts: dict, ctx: Ctx) -> SourceOutcome:
             count=len(jobs),
             status=status,
         )
-        return SourceOutcome(module.name, jobs, status, error)
+        return SourceOutcome(
+            module.name,
+            jobs,
+            status,
+            error,
+            pages_fetched=pages_fetched,
+            pagination_stop_reasons=pagination_stop_reasons,
+            coverage_complete=coverage_complete,
+        )
     except Exception as exc:
         error = str(exc)
         status = _status_for_error(error)
         ctx.emit("source.error", source=module.name, error=error)
-        return SourceOutcome(module.name, [], status, error)
+        return SourceOutcome(
+            module.name,
+            [],
+            status,
+            error,
+            pagination_stop_reasons=[],
+        )
 
 
 def _compatible_location(left: Job, right: Job) -> bool:
@@ -269,7 +311,8 @@ async def scan(
     location: str | None = None,
     prefecture: str | None = None,
     prefecture_code: str | None = None,
-    pages: int = 2,
+    pages: int | None = 2,
+    max_pages: int = 50,
     days: int | None = 7,
     employment_types: list[str] | None = None,
     language: str | None = None,
@@ -319,8 +362,16 @@ async def scan(
         "location": location,
         "prefecture": prefecture,
         "prefecture_code": prefecture_code,
-        "pages": pages,
+        "pages": pages if pages is not None else 2,
+        "auto_pages": pages is None,
+        "max_pages": max_pages,
         "days": days,
+        "as_of": as_of_date.isoformat(),
+        "cutoff_date": (
+            (as_of_date - timedelta(days=days)).isoformat()
+            if days is not None
+            else None
+        ),
         "employment_types": employment_types,
         "language": language,
         "english_filter": english_filter,
@@ -388,6 +439,12 @@ async def scan(
     for outcome in outcomes:
         if outcome.error:
             warnings.append(f"{outcome.name}: {outcome.error}")
+        if outcome.coverage_complete is False and pages is None:
+            reasons = ", ".join(outcome.pagination_stop_reasons or ["unknown"])
+            warnings.append(
+                f"{outcome.name}: automatic pagination stopped at {reasons}; "
+                "recent-window coverage may be incomplete"
+            )
 
     if filter_reasons.get("unknown_date"):
         warnings.append(
@@ -420,6 +477,9 @@ async def scan(
                 filtered=filtered_by_source[outcome.name],
                 enriched=details.enriched,
                 error=error,
+                pages_fetched=outcome.pages_fetched,
+                pagination_stop_reasons=outcome.pagination_stop_reasons or [],
+                coverage_complete=outcome.coverage_complete,
             )
         )
 

@@ -14,6 +14,7 @@ from typing import Any
 
 from jpjobs.schema import Job, Wage, make_job_id, now_iso
 from jpjobs.location import PREFECTURES
+from jpjobs.pagination import PaginationController
 
 
 name = "hellowork"
@@ -239,7 +240,6 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
     prefecture: str | None = opts.get(
         "prefecture_code"
     )  # '13' for Tokyo; pass code, not slug
-    pages: int = opts.get("pages", 2)
     employment_types: list[str] = opts.get("employment_types") or ["fulltime"]
     english_filter: bool = opts.get("english_filter", opts.get("language") == "english")
 
@@ -258,19 +258,23 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
     try:
         for kw in keywords:
             try:
+                pagination = PaginationController(
+                    opts=opts,
+                    ctx=ctx,
+                    source=name,
+                    keyword=kw,
+                )
                 await _setup_search(page, kw, prefecture, employment_types)
-                for page_num in range(1, pages + 1):
+                for page_num in range(1, pagination.limit + 1):
                     rows, total, has_next = await _extract_from_page(page)
-                    ctx.emit(
-                        "source.page",
-                        source=name,
-                        keyword=kw,
-                        page=page_num,
-                        rows=len(rows),
-                        total=total,
-                    )
-                    for r in rows:
-                        parsed = _parse_job_row(r["text"], r["kjno"])
+                    before_count = len(seen)
+                    page_dates: list[str | None] = []
+                    parsed_rows = []
+                    for row in rows:
+                        parsed = _parse_job_row(row["text"], row["kjno"])
+                        parsed_rows.append((row, parsed))
+                        page_dates.append(parsed["date_posted"])
+                    for r, parsed in parsed_rows:
                         if (
                             prefecture
                             and parsed["prefecture"]
@@ -305,7 +309,25 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                             matched_keyword=kw or None,
                             scraped_at=now_iso(),
                         )
-                    if not has_next or page_num >= pages:
+                    added = len(seen) - before_count
+                    ctx.emit(
+                        "source.page",
+                        source=name,
+                        keyword=kw,
+                        page=page_num,
+                        rows=len(rows),
+                        added=added,
+                        total=total,
+                    )
+                    decision = pagination.decide(
+                        page=page_num,
+                        rows=len(rows),
+                        added=added,
+                        dates=page_dates,
+                        has_next=has_next,
+                        date_ordered=True,
+                    )
+                    if decision.stop:
                         break
                     # next page
                     clicked = await page.evaluate("""

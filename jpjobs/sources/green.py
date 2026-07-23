@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import re
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlencode
 
 from selectolax.parser import HTMLParser
 
+from jpjobs.pagination import PaginationController
 from jpjobs.schema import Job, make_job_id, now_iso
 from jpjobs.util.fetch import fetch_html, make_client
 
@@ -31,10 +33,30 @@ default_rate_limit_ms = 1500
 BASE = "https://www.green-japan.com/search"
 
 
-def _parse_page(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, int]:
+def _updated_dates(html: str) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for timestamp, url in re.findall(
+        r'jobOfferUpdatedAtTimestamp":(\d+),"jobOfferUrl":"([^"]+)',
+        html,
+    ):
+        try:
+            result[url] = (
+                datetime.fromtimestamp(int(timestamp), timezone.utc).date().isoformat()
+            )
+        except (OverflowError, OSError, ValueError):
+            continue
+    return result
+
+
+def _parse_page(
+    html: str, keyword: str, seen: dict[str, Job], *, page_num: int
+) -> tuple[int, int, list[Job], list[str | None], bool]:
     tree = HTMLParser(html)
     anchors = tree.css('a[href^="/company/"]')
+    updated_dates = _updated_dates(html)
     added = 0
+    page_jobs: list[Job] = []
+    page_dates: list[str | None] = []
     for anchor in anchors:
         href = anchor.attributes.get("href") or ""
         match = re.match(r"^/company/(\d+)/job/(\d+)", href)
@@ -87,7 +109,7 @@ def _parse_page(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, int
             ),
             "Japan",
         )
-        seen[source_id] = Job(
+        job = Job(
             id=make_job_id(name, source_id),
             source=name,
             source_id=source_id,
@@ -98,19 +120,37 @@ def _parse_page(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, int
             matched_keyword=keyword or None,
             scraped_at=now_iso(),
         )
+        seen[source_id] = job
+        page_jobs.append(job)
+        page_dates.append(updated_dates.get(href))
         added += 1
-    return len(anchors), added
+    has_next = any(
+        re.search(
+            rf"(?:[?&])page={page_num + 1}(?:&|$)",
+            anchor.attributes.get("href") or "",
+        )
+        for anchor in tree.css("a")
+    )
+    return len(anchors), added, page_jobs, page_dates, has_next
 
 
 async def scan(opts: dict[str, Any], ctx) -> list[Job]:
     keywords = opts.get("keywords") or [""]
-    pages = opts.get("pages", 2)
     pacing_ms = opts.get("rate_limit_ms", default_rate_limit_ms)
     seen: dict[str, Job] = {}
     async with make_client() as client:
         for keyword in keywords:
-            for page_num in range(1, pages + 1):
-                params: dict[str, Any] = {"page": page_num}
+            pagination = PaginationController(
+                opts=opts,
+                ctx=ctx,
+                source=name,
+                keyword=keyword,
+            )
+            for page_num in range(1, pagination.limit + 1):
+                params: dict[str, Any] = {
+                    "page": page_num,
+                    "order_type": "new",
+                }
                 if keyword:
                     params["keyword"] = keyword
                 url = f"{BASE}?{urlencode(params)}"
@@ -124,7 +164,12 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                         error="fetch failed",
                     )
                     break
-                rows, added = _parse_page(html, keyword, seen)
+                rows, added, _page_jobs, page_dates, has_next = _parse_page(
+                    html,
+                    keyword,
+                    seen,
+                    page_num=page_num,
+                )
                 ctx.emit(
                     "source.page",
                     source=name,
@@ -134,7 +179,15 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     added=added,
                     total=len(seen),
                 )
-                if rows == 0:
+                decision = pagination.decide(
+                    page=page_num,
+                    rows=rows,
+                    added=added,
+                    dates=page_dates,
+                    has_next=has_next,
+                    date_ordered=True,
+                )
+                if decision.stop:
                     break
                 await asyncio.sleep(max(0, pacing_ms) / 1000)
     return list(seen.values())

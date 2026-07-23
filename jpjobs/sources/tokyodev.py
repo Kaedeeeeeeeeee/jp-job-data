@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 
 from selectolax.parser import HTMLParser
 
+from jpjobs.pagination import PaginationController
 from jpjobs.schema import Job, make_job_id, now_iso
 from jpjobs.util.fetch import make_client, fetch_html
 
@@ -82,4 +83,10 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
             ctx.emit(
                 "source.page", source=name, keyword=kw, rows=page_count, total=len(seen)
             )
+            PaginationController(
+                opts=opts,
+                ctx=ctx,
+                source=name,
+                keyword=kw,
+            ).single_page(page_count)
     return list(seen.values())

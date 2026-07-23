@@ -77,12 +77,30 @@ The `英語` (English) keyword surfaces foreign-affiliated employers within Hell
 ### "Cast the widest possible net"
 
 ```bash
-jpjobs --days=30 --pages=3 --fetch-details --output=all-jobs.json
+jpjobs --days=30 --pages=auto --max-pages=50 \
+       --fetch-details --output=all-jobs.json
 ```
 
 Runs every active source, enriches detail fields, and retains only jobs whose
-posted dates can be verified inside the requested window. Detail enrichment can
-take several minutes.
+posted dates can be verified inside the requested window. Automatic pagination
+continues until the source ends, its newest-first results move beyond the
+30-day boundary, or the safety cap is reached. Detail enrichment can take
+several minutes.
+
+The JSON `per_source` section records `pages_fetched`,
+`pagination_stop_reasons`, and `coverage_complete`. A safety-cap warning means
+the output is valid but that source may still have more in-window jobs.
+
+### "Open a simple browser page for manual data review"
+
+```bash
+python experiments/build_audit_report.py all-jobs.json \
+       --per-source=20 \
+       --output=audit/index.html
+```
+
+Open `audit/index.html`. The page samples each source evenly, saves review
+choices in the browser, and exports the completed review as JSON.
 
 ### "Part-time or contract roles"
 

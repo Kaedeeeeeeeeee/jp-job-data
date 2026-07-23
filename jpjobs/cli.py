@@ -12,6 +12,28 @@ from jpjobs.location import slug_to_code
 from jpjobs.output import format_result, FORMATTERS
 
 
+def _page_mode(value: str) -> int | None:
+    if value.casefold() == "auto":
+        return None
+    try:
+        pages = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("use a positive integer or 'auto'") from exc
+    if pages < 1:
+        raise argparse.ArgumentTypeError("page count must be at least 1")
+    return pages
+
+
+def _positive_int(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a positive integer") from exc
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return number
+
+
 def _make_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="jpjobs",
@@ -33,7 +55,22 @@ def _make_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--prefecture", help="Prefecture slug (e.g., 'tokyo', 'osaka').")
     p.add_argument("--location", default="Japan", help="Free-text location (LinkedIn).")
-    p.add_argument("--pages", type=int, default=2)
+    p.add_argument(
+        "--pages",
+        type=_page_mode,
+        default=2,
+        metavar="N|auto",
+        help=(
+            "Maximum pages per source, or 'auto' to continue through the date "
+            "window (default: 2)."
+        ),
+    )
+    p.add_argument(
+        "--max-pages",
+        type=_positive_int,
+        default=50,
+        help="Safety cap per source/query when --pages=auto (default: 50).",
+    )
     p.add_argument("--days", type=int, default=7, help="Posted within last N days.")
     p.add_argument(
         "--as-of",
@@ -127,6 +164,7 @@ async def _run(args) -> int:
         prefecture=args.prefecture,
         prefecture_code=pref_code,
         pages=args.pages,
+        max_pages=args.max_pages,
         days=args.days,
         employment_types=args.employment_types,
         language=args.language,

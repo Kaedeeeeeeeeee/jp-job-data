@@ -1,4 +1,4 @@
-# jp-job-data / jpjobs 0.3
+# jp-job-data / jpjobs 0.4
 
 > Unified scraper for Japan's major job boards, with AI-assistant integration.
 
@@ -7,6 +7,8 @@ Pure Python. No API keys. No account required. Output drops cleanly into Claude 
 This repository starts from the PyPI `jpjobs==0.2.0` source distribution and
 adds reproducible data-quality improvements. See
 [the baseline comparison](./docs/baseline-vs-optimized.md) and
+[the audit and automatic-pagination guide](./docs/audit-and-auto-pagination.md),
+plus
 [upstream provenance](./UPSTREAM.md).
 
 The optimized pipeline adds:
@@ -15,6 +17,7 @@ The optimized pipeline adds:
 - optional schema.org `JobPosting` detail enrichment;
 - normalized dates, prefectures, employment types, and language signals;
 - real pagination for the supported active boards;
+- date-aware automatic pagination with explicit coverage status and safety caps;
 - cross-source deduplication with retained source URLs and native IDs;
 - explicit source health states and filter reasons;
 - optional SQLite persistence for incremental runs;
@@ -31,7 +34,7 @@ The optimized pipeline adds:
 
 ## Sources
 
-**10 active** sources returning real jobs as of v0.3:
+**10 active** sources returning real jobs as of v0.4:
 
 | Slug          | Type                     | Browser? | Description |
 |---------------|--------------------------|----------|-------------|
@@ -66,8 +69,9 @@ playwright install chromium   # one-time, only for hellowork / indeed
 # List supported sources
 jpjobs --list-sources
 
-# Verified jobs posted in the last 30 days, with detail enrichment
-jpjobs --days=30 --pages=2 --fetch-details --output=jobs.json
+# Verified jobs posted in the last 30 days, with date-aware pagination
+jpjobs --days=30 --pages=auto --max-pages=50 \
+       --fetch-details --output=jobs.json
 
 # Tokyo English-friendly only, ready to paste into an AI assistant
 jpjobs --sources=linkedin,tokyodev,japandev,gaijinpot \
@@ -86,7 +90,8 @@ See [USAGE.md](./USAGE.md) for a step-by-step walkthrough including troubleshoot
 | `--keyword`           | Keyword filter — can be repeated                              |
 | `--prefecture`        | One of 47 prefecture slugs (`tokyo`, `osaka`, …)              |
 | `--location`          | Free-text location (LinkedIn)                                 |
-| `--pages`             | Pagination depth per source (default 2)                       |
+| `--pages`             | Page depth, or `auto` to continue through the date window     |
+| `--max-pages`         | Per-source safety cap for automatic pagination (default 50)   |
 | `--days`              | Posted-within window (default 7)                              |
 | `--as-of`             | Reproducible end date for the window (`YYYY-MM-DD`)           |
 | `--include-unknown-dates` | Keep rows whose posted date cannot be verified            |
@@ -159,6 +164,10 @@ register the slug in `aggregate.py`.
 ## Limitations
 
 - Detail pages are fetched only when `--fetch-details` is supplied.
+- `--pages=auto` stops at the date boundary only when a source has a reliable
+  newest-first signal. Otherwise it runs to the source end or `--max-pages`.
+- A safety-cap or repeated-page stop is reported as incomplete coverage rather
+  than silently claiming the whole window was collected.
 - Strict date filtering excludes unknown dates unless `--include-unknown-dates`
   is supplied.
 - Some boards (Wantedly full apply, Bizreach, Findy) are login-gated and intentionally unsupported.

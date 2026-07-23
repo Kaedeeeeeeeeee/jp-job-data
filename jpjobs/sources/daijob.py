@@ -9,6 +9,8 @@ from urllib.parse import urlencode
 
 from selectolax.parser import HTMLParser
 
+from jpjobs.enrich import extract_job_posting
+from jpjobs.pagination import PaginationController
 from jpjobs.schema import Job, make_job_id, now_iso
 from jpjobs.util.fetch import fetch_html, make_client
 
@@ -31,10 +33,13 @@ default_rate_limit_ms = 1500
 BASE = "https://www.daijob.com/en/jobs/search_result"
 
 
-def _parse_page(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, int]:
+def _parse_page(
+    html: str, keyword: str, seen: dict[str, Job]
+) -> tuple[int, int, list[Job]]:
     tree = HTMLParser(html)
     cards = tree.css("article.job-card")
     added = 0
+    page_jobs: list[Job] = []
     for card in cards:
         title_anchor = card.css_first("h2.job-card__title a") or card.css_first(
             'a[href*="/en/jobs/detail/"]'
@@ -78,7 +83,7 @@ def _parse_page(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, int
             if href.startswith("http")
             else f"https://www.daijob.com{href.split('?')[0]}"
         )
-        seen[source_id] = Job(
+        job = Job(
             id=make_job_id(name, source_id),
             source=name,
             source_id=source_id,
@@ -90,20 +95,43 @@ def _parse_page(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, int
             matched_keyword=keyword or None,
             scraped_at=now_iso(),
         )
+        seen[source_id] = job
+        page_jobs.append(job)
         added += 1
-    return len(cards), added
+    return len(cards), added, page_jobs
+
+
+async def _probe_activated_date(client, job: Job) -> str | None:
+    """Read the oldest row's activation date for newest-first auto paging."""
+    try:
+        response = await client.get(job.url)
+        response.raise_for_status()
+    except Exception:
+        return None
+    posting = extract_job_posting(response.text)
+    if posting and posting.get("datePosted"):
+        return str(posting["datePosted"])
+    text = HTMLParser(response.text).text(separator=" ", strip=True)
+    match = re.search(r"\bActivated\s+(\d{4}-\d{2}-\d{2})\b", text, re.I)
+    return match.group(1) if match else None
 
 
 async def scan(opts: dict[str, Any], ctx) -> list[Job]:
     keywords = opts.get("keywords") or [""]
-    pages = opts.get("pages", 2)
     pacing_ms = opts.get("rate_limit_ms", default_rate_limit_ms)
     seen: dict[str, Job] = {}
     async with make_client() as client:
         for keyword in keywords:
-            for page_num in range(1, pages + 1):
+            pagination = PaginationController(
+                opts=opts,
+                ctx=ctx,
+                source=name,
+                keyword=keyword,
+            )
+            for page_num in range(1, pagination.limit + 1):
                 params: dict[str, Any] = {
                     "job_post_language": 1,
+                    "sort_order": 2,
                     "page": page_num,
                 }
                 if keyword:
@@ -119,7 +147,12 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                         error="fetch failed",
                     )
                     break
-                rows, added = _parse_page(html, keyword, seen)
+                rows, added, page_jobs = _parse_page(html, keyword, seen)
+                oldest_date = None
+                if pagination.auto and pagination.cutoff and page_jobs:
+                    oldest_date = await _probe_activated_date(client, page_jobs[-1])
+                    if oldest_date:
+                        page_jobs[-1].date_posted = oldest_date
                 ctx.emit(
                     "source.page",
                     source=name,
@@ -129,7 +162,15 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     added=added,
                     total=len(seen),
                 )
-                if rows == 0:
+                decision = pagination.decide(
+                    page=page_num,
+                    rows=rows,
+                    added=added,
+                    dates=[oldest_date] if oldest_date else [],
+                    # sort_order=2 is Daijob's "Activated date" order.
+                    date_ordered=True,
+                )
+                if decision.stop:
                     break
                 await asyncio.sleep(max(0, pacing_ms) / 1000)
     return list(seen.values())

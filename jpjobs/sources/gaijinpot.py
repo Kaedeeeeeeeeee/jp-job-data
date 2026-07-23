@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 
 from selectolax.parser import HTMLParser
 
+from jpjobs.pagination import PaginationController
 from jpjobs.schema import Job, Wage, make_job_id, now_iso
 from jpjobs.util.fetch import fetch_html, make_client
 
@@ -42,10 +43,13 @@ def _dl_lookup(card, label: str) -> str:
     return ""
 
 
-def _parse_cards(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, int]:
+def _parse_cards(
+    html: str, keyword: str, seen: dict[str, Job]
+) -> tuple[int, int, list[Job], bool]:
     tree = HTMLParser(html)
     cards = tree.css("div.card[data-href^='/en/job/']")
     added = 0
+    page_jobs: list[Job] = []
     for card in cards:
         href = card.attributes.get("data-href") or ""
         match = re.match(r"^/en/job/(\d+)", href)
@@ -98,7 +102,7 @@ def _parse_cards(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, in
             "intern": "intern",
         }
 
-        seen[source_id] = Job(
+        job = Job(
             id=make_job_id(name, source_id),
             source=name,
             source_id=source_id,
@@ -118,20 +122,35 @@ def _parse_cards(html: str, keyword: str, seen: dict[str, Job]) -> tuple[int, in
             matched_keyword=keyword or None,
             scraped_at=now_iso(),
         )
+        seen[source_id] = job
+        page_jobs.append(job)
         added += 1
-    return len(cards), added
+    has_next = any(
+        anchor.text(strip=True).casefold() == "next"
+        for anchor in tree.css("a")
+        if "page=" in (anchor.attributes.get("href") or "")
+    )
+    return len(cards), added, page_jobs, has_next
 
 
 async def scan(opts: dict[str, Any], ctx) -> list[Job]:
     keywords = opts.get("keywords") or [""]
-    pages = opts.get("pages", 2)
     pacing_ms = opts.get("rate_limit_ms", default_rate_limit_ms)
     seen: dict[str, Job] = {}
 
     async with make_client() as client:
         for keyword in keywords:
-            for page_num in range(1, pages + 1):
-                params: dict[str, Any] = {"page": page_num}
+            pagination = PaginationController(
+                opts=opts,
+                ctx=ctx,
+                source=name,
+                keyword=keyword,
+            )
+            for page_num in range(1, pagination.limit + 1):
+                params: dict[str, Any] = {
+                    "page": page_num,
+                    "order_by": "latest",
+                }
                 if keyword:
                     params["keywords"] = keyword
                 url = f"{BASE}?{urlencode(params)}"
@@ -145,7 +164,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                         error="fetch failed",
                     )
                     break
-                rows, added = _parse_cards(html, keyword, seen)
+                rows, added, page_jobs, has_next = _parse_cards(html, keyword, seen)
                 ctx.emit(
                     "source.page",
                     source=name,
@@ -155,7 +174,15 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     added=added,
                     total=len(seen),
                 )
-                if rows == 0:
+                decision = pagination.decide(
+                    page=page_num,
+                    rows=rows,
+                    added=added,
+                    dates=[job.date_posted for job in page_jobs],
+                    has_next=has_next,
+                    date_ordered=True,
+                )
+                if decision.stop:
                     break
                 await asyncio.sleep(max(0, pacing_ms) / 1000)
     return list(seen.values())

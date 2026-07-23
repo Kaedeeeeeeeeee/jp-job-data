@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 
 from selectolax.parser import HTMLParser
 
+from jpjobs.pagination import PaginationController
 from jpjobs.schema import Job, Wage, make_job_id, now_iso
 from jpjobs.util.fetch import fetch_html, make_client
 
@@ -63,7 +64,6 @@ def _employment_type(hit: dict[str, Any]) -> str | None:
 
 async def scan(opts: dict[str, Any], ctx) -> list[Job]:
     keywords = opts.get("keywords") or [""]
-    pages = opts.get("pages", 2)
     pacing_ms = opts.get("rate_limit_ms", default_rate_limit_ms)
     seen: dict[str, Job] = {}
 
@@ -85,7 +85,13 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
             "content-type": "application/json",
         }
         for keyword in keywords:
-            for page_num in range(pages):
+            pagination = PaginationController(
+                opts=opts,
+                ctx=ctx,
+                source=name,
+                keyword=keyword,
+            )
+            for page_num in range(pagination.limit):
                 params = urlencode(
                     {
                         "query": keyword,
@@ -128,8 +134,13 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     )
                     break
 
+                hits = result.get("hits") or []
                 added = 0
-                for hit in result.get("hits") or []:
+                page_dates: list[str | None] = []
+                for hit in hits:
+                    page_dates.append(
+                        hit.get("published_at") or hit.get("job_post_date")
+                    )
                     source_id = str(hit.get("objectID") or "")
                     title = str(hit.get("title") or "").strip()
                     slug = str(hit.get("slug") or "").strip()
@@ -184,12 +195,24 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     source=name,
                     keyword=keyword,
                     page=page_num + 1,
-                    rows=len(result.get("hits") or []),
+                    rows=len(hits),
                     added=added,
                     total=len(seen),
                     available=result.get("nbHits"),
                 )
-                if page_num + 1 >= int(result.get("nbPages") or 0):
+                total_pages = int(result.get("nbPages") or 0)
+                decision = pagination.decide(
+                    page=page_num + 1,
+                    rows=len(hits),
+                    added=added,
+                    dates=page_dates,
+                    has_next=page_num + 1 < total_pages,
+                    total_pages=total_pages,
+                    # The public production index uses relevance order, not
+                    # a guaranteed date order, so auto mode exhausts it.
+                    date_ordered=False,
+                )
+                if decision.stop:
                     break
 
                 import asyncio

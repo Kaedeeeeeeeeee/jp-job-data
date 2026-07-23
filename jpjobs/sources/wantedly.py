@@ -12,10 +12,13 @@ description_snippet so downstream callers know.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from typing import Any
+from urllib.parse import urlencode
 
+from jpjobs.pagination import PaginationController
 from jpjobs.schema import Job, make_job_id, now_iso
 from jpjobs.util.fetch import make_client, fetch_html
 
@@ -66,35 +69,64 @@ def _extract_next_data(html: str) -> dict | None:
         return None
 
 
-def _iter_job_posts(apollo: dict):
-    """Yield (job_id, jobpost_dict, company_dict_or_none) from Apollo cache."""
-    for key, val in apollo.items():
-        if not key.startswith("JobPost:") or not isinstance(val, dict):
+def _page_job_posts(
+    apollo: dict, page_num: int
+) -> tuple[list[tuple[str, dict, dict | None]], int, bool]:
+    """Return only the requested result page, excluding cached recommendations."""
+    root = apollo.get("ROOT_QUERY") or {}
+    index = root.get("projectIndexPageJobPostIndex") or {}
+    marker = f'"pageNumber":{page_num}'
+    payload = next(
+        (
+            value
+            for key, value in index.items()
+            if key.startswith("searchedJobPostsUsingOffset") and marker in key
+        ),
+        None,
+    )
+    if not isinstance(payload, dict):
+        return [], 0, False
+
+    rows: list[tuple[str, dict, dict | None]] = []
+    for item in payload.get("jobPosts") or []:
+        job_ref = (item.get("jobPost") or {}).get("__ref")
+        job_post = apollo.get(job_ref) if job_ref else item.get("jobPost")
+        if not isinstance(job_post, dict):
             continue
-        jid = val.get("id") or ""
-        if not jid:
-            # key looks like 'JobPost:{"id":"1671536"}'
-            m = re.search(r'"id":"(\d+)"', key)
-            if m:
-                jid = m.group(1)
-        if not jid:
+        job_id = str(job_post.get("id") or "")
+        if not job_id:
             continue
-        company_ref = (val.get("company") or {}).get("__ref")
+        company_ref = (job_post.get("company") or {}).get("__ref")
         company = apollo.get(company_ref) if company_ref else None
-        yield jid, val, company
+        rows.append((job_id, job_post, company))
+
+    total = int(payload.get("totalCount") or len(rows))
+    has_next = page_num * 10 < total
+    return rows, total, has_next
 
 
 async def scan(opts: dict[str, Any], ctx) -> list[Job]:
     keywords = opts.get("keywords") or [""]
-    pages = opts.get("pages", 2)
+    pacing_ms = opts.get("rate_limit_ms", default_rate_limit_ms)
     seen: dict[str, Job] = {}
     async with make_client() as client:
         for kw in keywords:
-            for page_num in range(1, pages + 1):
-                qs = f"country_code=JP&page={page_num}"
+            query_seen: set[str] = set()
+            pagination = PaginationController(
+                opts=opts,
+                ctx=ctx,
+                source=name,
+                keyword=kw,
+            )
+            for page_num in range(1, pagination.limit + 1):
+                params = {
+                    "country_code": "JP",
+                    "page": page_num,
+                    "order": "recent",
+                }
                 if kw:
-                    qs += f"&q={kw}"
-                url = f"{BASE}?{qs}"
+                    params["keywords"] = kw
+                url = f"{BASE}?{urlencode(params)}"
                 html = await fetch_html(client, url)
                 if not html:
                     ctx.emit(
@@ -129,8 +161,14 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     )
                     break
 
+                page_rows, available, has_next = _page_job_posts(apollo, page_num)
+                query_added = sum(
+                    job_id not in query_seen for job_id, _, _ in page_rows
+                )
+                query_seen.update(job_id for job_id, _, _ in page_rows)
                 page_count = 0
-                for jid, jp, co in _iter_job_posts(apollo):
+                page_jobs: list[Job] = []
+                for jid, jp, co in page_rows:
                     if jid in seen:
                         continue
                     title = (jp.get("title") or "").strip()[:200]
@@ -163,7 +201,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     else:
                         snippet = "NOTE: apply flow requires Wantedly login."
 
-                    seen[jid] = Job(
+                    job = Job(
                         id=make_job_id(name, jid),
                         source=name,
                         source_id=jid,
@@ -178,15 +216,29 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                         matched_keyword=kw or None,
                         scraped_at=now_iso(),
                     )
+                    seen[jid] = job
+                    page_jobs.append(job)
                     page_count += 1
                 ctx.emit(
                     "source.page",
                     source=name,
                     keyword=kw,
                     page=page_num,
-                    rows=page_count,
+                    rows=len(page_rows),
+                    added=page_count,
                     total=len(seen),
+                    available=available,
                 )
-                if page_count == 0:
+                decision = pagination.decide(
+                    page=page_num,
+                    rows=len(page_rows),
+                    added=query_added,
+                    dates=[job.date_posted for job in page_jobs],
+                    has_next=has_next,
+                    date_ordered=True,
+                    stop_on_no_new=True,
+                )
+                if decision.stop:
                     break
+                await asyncio.sleep(max(0, pacing_ms) / 1000)
     return list(seen.values())

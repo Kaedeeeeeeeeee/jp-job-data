@@ -25,6 +25,7 @@ jpjobs --sources=linkedin,hellowork \
        --keyword="IT Support" \
        --prefecture=tokyo \
        --english-filter \
+       --pages=auto --max-pages=50 \
        --fetch-details \
        --format=json --output=/tmp/jobs.json
 
@@ -92,6 +93,8 @@ and language signals.
 - **A source returning empty doesn't mean "no jobs available"** — it can mean rate-limited or anti-bot
 - Check `per_source[].status`; it distinguishes no results, partial results,
   blocks, parse failures, and other failures
+- Check `per_source[].coverage_complete` and `pagination_stop_reasons` before
+  claiming that a date window is fully covered
 - Strict date filtering excludes rows with unknown dates unless the user
   explicitly supplies `--include-unknown-dates`
 - **The user's resume is NOT in this package** — always obtain it from the user directly

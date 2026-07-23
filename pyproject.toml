@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jpjobs"
-version = "0.3.0"
+version = "0.4.0"
 description = "Quality-focused multi-source scraper for Japan job boards"
 readme = "README.md"
 requires-python = ">=3.10"
