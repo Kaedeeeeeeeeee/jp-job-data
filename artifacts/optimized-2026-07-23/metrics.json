@@ -1,0 +1,624 @@
+{
+  "generated_at": "2026-07-23T04:38:48Z",
+  "window": {
+    "start": "2026-06-23",
+    "end": "2026-07-23"
+  },
+  "reported_total_kept": 397,
+  "rows": 397,
+  "source_count": 9,
+  "warnings": [
+    "1 jobs excluded because date_posted was unavailable; use include_unknown_dates=True to retain them"
+  ],
+  "pipeline": {
+    "raw_total": 641,
+    "filtered_out": 241,
+    "duplicates_merged": 3,
+    "filter_reasons": {
+      "before_date_window": 240,
+      "unknown_date": 1
+    }
+  },
+  "overall": {
+    "completeness": {
+      "title": {
+        "present": 397,
+        "rate": 1.0
+      },
+      "company": {
+        "present": 397,
+        "rate": 1.0
+      },
+      "description_snippet": {
+        "present": 387,
+        "rate": 0.9748
+      },
+      "workplace": {
+        "present": 397,
+        "rate": 1.0
+      },
+      "prefecture": {
+        "present": 364,
+        "rate": 0.9169
+      },
+      "employment_type": {
+        "present": 355,
+        "rate": 0.8942
+      },
+      "date_posted": {
+        "present": 397,
+        "rate": 1.0
+      },
+      "language": {
+        "present": 295,
+        "rate": 0.7431
+      },
+      "wage": {
+        "present": 351,
+        "rate": 0.8841
+      }
+    },
+    "dates": {
+      "known": 397,
+      "unknown": 0,
+      "invalid": 0,
+      "in_window": 397,
+      "before_window": 0,
+      "after_window": 0
+    },
+    "duplicates": {
+      "native_duplicate_groups": 0,
+      "native_duplicate_rows": 0,
+      "cross_source_exact_groups": 0,
+      "cross_source_exact_rows": 0,
+      "cross_source_examples": []
+    },
+    "implicit_matched_keywords": {},
+    "jobs_with_implicit_keywords": 0
+  },
+  "per_source": {
+    "daijob": {
+      "rows": 39,
+      "completeness": {
+        "title": {
+          "present": 39,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 39,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 39,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 39,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 20,
+          "rate": 0.5128
+        },
+        "employment_type": {
+          "present": 9,
+          "rate": 0.2308
+        },
+        "date_posted": {
+          "present": 39,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 39,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 30,
+          "rate": 0.7692
+        }
+      },
+      "dates": {
+        "known": 39,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 39,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "gaijinpot": {
+      "rows": 160,
+      "completeness": {
+        "title": {
+          "present": 160,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 160,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 160,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 160,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 153,
+          "rate": 0.9563
+        },
+        "employment_type": {
+          "present": 159,
+          "rate": 0.9938
+        },
+        "date_posted": {
+          "present": 160,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 160,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 160,
+          "rate": 1.0
+        }
+      },
+      "dates": {
+        "known": 160,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 160,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "green": {
+      "rows": 32,
+      "completeness": {
+        "title": {
+          "present": 32,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 32,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 32,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 32,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 32,
+          "rate": 1.0
+        },
+        "employment_type": {
+          "present": 32,
+          "rate": 1.0
+        },
+        "date_posted": {
+          "present": 32,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "wage": {
+          "present": 32,
+          "rate": 1.0
+        }
+      },
+      "dates": {
+        "known": 32,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 32,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "hellowork": {
+      "rows": 60,
+      "completeness": {
+        "title": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "employment_type": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "date_posted": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "wage": {
+          "present": 60,
+          "rate": 1.0
+        }
+      },
+      "dates": {
+        "known": 60,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 60,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "japandev": {
+      "rows": 2,
+      "completeness": {
+        "title": {
+          "present": 2,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 2,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 2,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 2,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 2,
+          "rate": 1.0
+        },
+        "employment_type": {
+          "present": 2,
+          "rate": 1.0
+        },
+        "date_posted": {
+          "present": 2,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 2,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 1,
+          "rate": 0.5
+        }
+      },
+      "dates": {
+        "known": 2,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 2,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "jobsinjapan": {
+      "rows": 57,
+      "completeness": {
+        "title": {
+          "present": 57,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 57,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 57,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 57,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 56,
+          "rate": 0.9825
+        },
+        "employment_type": {
+          "present": 56,
+          "rate": 0.9825
+        },
+        "date_posted": {
+          "present": 57,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 57,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 55,
+          "rate": 0.9649
+        }
+      },
+      "dates": {
+        "known": 57,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 57,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "linkedin": {
+      "rows": 10,
+      "completeness": {
+        "title": {
+          "present": 10,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 10,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 10,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 8,
+          "rate": 0.8
+        },
+        "employment_type": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "date_posted": {
+          "present": 10,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 10,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 10,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "tokyodev": {
+      "rows": 33,
+      "completeness": {
+        "title": {
+          "present": 33,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 33,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 33,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 33,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 33,
+          "rate": 1.0
+        },
+        "employment_type": {
+          "present": 33,
+          "rate": 1.0
+        },
+        "date_posted": {
+          "present": 33,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 33,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 13,
+          "rate": 0.3939
+        }
+      },
+      "dates": {
+        "known": 33,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 33,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "wantedly": {
+      "rows": 4,
+      "completeness": {
+        "title": {
+          "present": 4,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 4,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 4,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 4,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 4,
+          "rate": 1.0
+        },
+        "date_posted": {
+          "present": 4,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 4,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 4,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 4,
+        "before_window": 0,
+        "after_window": 0
+      }
+    }
+  },
+  "reported_per_source": [
+    {
+      "name": "hellowork",
+      "status": "success",
+      "kept": 60,
+      "total": 60,
+      "raw_total": 60,
+      "filtered": 0,
+      "enriched": 0,
+      "error": null
+    },
+    {
+      "name": "linkedin",
+      "status": "success",
+      "kept": 10,
+      "total": 10,
+      "raw_total": 10,
+      "filtered": 0,
+      "enriched": 0,
+      "error": null
+    },
+    {
+      "name": "tokyodev",
+      "status": "success",
+      "kept": 33,
+      "total": 156,
+      "raw_total": 156,
+      "filtered": 123,
+      "enriched": 156,
+      "error": null
+    },
+    {
+      "name": "japandev",
+      "status": "success",
+      "kept": 2,
+      "total": 60,
+      "raw_total": 60,
+      "filtered": 58,
+      "enriched": 60,
+      "error": null
+    },
+    {
+      "name": "daijob",
+      "status": "success",
+      "kept": 39,
+      "total": 40,
+      "raw_total": 40,
+      "filtered": 1,
+      "enriched": 39,
+      "error": null
+    },
+    {
+      "name": "gaijinpot",
+      "status": "success",
+      "kept": 160,
+      "total": 160,
+      "raw_total": 160,
+      "filtered": 0,
+      "enriched": 160,
+      "error": null
+    },
+    {
+      "name": "jobsinjapan",
+      "status": "success",
+      "kept": 60,
+      "total": 60,
+      "raw_total": 60,
+      "filtered": 0,
+      "enriched": 60,
+      "error": null
+    },
+    {
+      "name": "green",
+      "status": "success",
+      "kept": 32,
+      "total": 40,
+      "raw_total": 40,
+      "filtered": 8,
+      "enriched": 40,
+      "error": null
+    },
+    {
+      "name": "forkwell",
+      "status": "success",
+      "kept": 0,
+      "total": 30,
+      "raw_total": 30,
+      "filtered": 30,
+      "enriched": 30,
+      "error": null
+    },
+    {
+      "name": "wantedly",
+      "status": "success",
+      "kept": 4,
+      "total": 25,
+      "raw_total": 25,
+      "filtered": 21,
+      "enriched": 0,
+      "error": null
+    }
+  ]
+}

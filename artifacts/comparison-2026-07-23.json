@@ -1,0 +1,109 @@
+{
+  "generated_at": "2026-07-23T04:38:48Z",
+  "window": {
+    "start": "2026-06-23",
+    "end": "2026-07-23"
+  },
+  "rows": {
+    "before": 507,
+    "after": 397,
+    "delta": -110
+  },
+  "verified_in_window": {
+    "before": 193,
+    "before_rate": 0.3807,
+    "after": 397,
+    "after_rate": 1.0
+  },
+  "unknown_dates": {
+    "before": 301,
+    "after": 0
+  },
+  "out_of_window": {
+    "before": 13,
+    "after": 0
+  },
+  "completeness": {
+    "title": {
+      "before_present": 507,
+      "before_rate": 1.0,
+      "after_present": 397,
+      "after_rate": 1.0,
+      "delta_percentage_points": 0.0
+    },
+    "company": {
+      "before_present": 489,
+      "before_rate": 0.9645,
+      "after_present": 397,
+      "after_rate": 1.0,
+      "delta_percentage_points": 3.55
+    },
+    "description_snippet": {
+      "before_present": 45,
+      "before_rate": 0.0888,
+      "after_present": 387,
+      "after_rate": 0.9748,
+      "delta_percentage_points": 88.6
+    },
+    "workplace": {
+      "before_present": 507,
+      "before_rate": 1.0,
+      "after_present": 397,
+      "after_rate": 1.0,
+      "delta_percentage_points": 0.0
+    },
+    "prefecture": {
+      "before_present": 30,
+      "before_rate": 0.0592,
+      "after_present": 364,
+      "after_rate": 0.9169,
+      "delta_percentage_points": 85.77
+    },
+    "employment_type": {
+      "before_present": 147,
+      "before_rate": 0.2899,
+      "after_present": 355,
+      "after_rate": 0.8942,
+      "delta_percentage_points": 60.43
+    },
+    "date_posted": {
+      "before_present": 206,
+      "before_rate": 0.4063,
+      "after_present": 397,
+      "after_rate": 1.0,
+      "delta_percentage_points": 59.37
+    },
+    "language": {
+      "before_present": 361,
+      "before_rate": 0.712,
+      "after_present": 295,
+      "after_rate": 0.7431,
+      "delta_percentage_points": 3.11
+    },
+    "wage": {
+      "before_present": 110,
+      "before_rate": 0.217,
+      "after_present": 351,
+      "after_rate": 0.8841,
+      "delta_percentage_points": 66.71
+    }
+  },
+  "duplicates": {
+    "before_cross_source_exact_groups": 7,
+    "after_cross_source_exact_groups": 0,
+    "merged_by_optimized_pipeline": 3
+  },
+  "implicit_keyword_jobs": {
+    "before": 81,
+    "after": 0
+  },
+  "optimized_pipeline": {
+    "raw_total": 641,
+    "filtered_out": 241,
+    "duplicates_merged": 3,
+    "filter_reasons": {
+      "before_date_window": 240,
+      "unknown_date": 1
+    }
+  }
+}

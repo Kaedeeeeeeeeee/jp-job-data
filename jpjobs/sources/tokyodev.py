@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from urllib.parse import urlencode
 
 from selectolax.parser import HTMLParser
 
@@ -21,6 +22,8 @@ supports = {
     "category": False,
     "employment_type": False,
     "language": False,  # all listings are English-friendly by design
+    "date": False,
+    "pagination": False,
 }
 default_rate_limit_ms = 1500
 
@@ -32,7 +35,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
     seen: dict[str, Job] = {}
     async with make_client() as client:
         for kw in keywords:
-            url = BASE if not kw else f"{BASE}?query={kw}"
+            url = BASE if not kw else f"{BASE}?{urlencode({'query[]': kw})}"
             html = await fetch_html(client, url)
             if not html:
                 ctx.emit("source.error", source=name, keyword=kw, error="fetch failed")

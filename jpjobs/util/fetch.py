@@ -8,7 +8,10 @@ from typing import Optional
 import httpx
 
 
-DEFAULT_UA = "jpjobs/0.1 (+https://github.com/jpjobs/jpjobs)"
+DEFAULT_UA = (
+    "jpjobs/0.3 (+https://github.com/Kaedeeeeeeeeee/jp-job-data; "
+    "responsible research crawler)"
+)
 
 
 def make_client(

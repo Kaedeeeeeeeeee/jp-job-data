@@ -78,9 +78,7 @@ def completeness(rows: list[dict[str, Any]]) -> dict[str, dict[str, float | int]
     return result
 
 
-def date_metrics(
-    rows: list[dict[str, Any]], start: date, end: date
-) -> dict[str, int]:
+def date_metrics(rows: list[dict[str, Any]], start: date, end: date) -> dict[str, int]:
     metrics = Counter(
         {
             "known": 0,
@@ -121,9 +119,7 @@ def duplicate_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
         if all(fingerprint):
             fingerprints[fingerprint].append(row)
 
-    native_duplicate_groups = [
-        group for group in native_ids.values() if len(group) > 1
-    ]
+    native_duplicate_groups = [group for group in native_ids.values() if len(group) > 1]
     cross_source_groups = [
         group
         for group in fingerprints.values()
@@ -176,6 +172,12 @@ def analyze(payload: dict[str, Any], start: date, end: date) -> dict[str, Any]:
         "rows": len(rows),
         "source_count": len(by_source),
         "warnings": payload.get("warnings") or [],
+        "pipeline": {
+            "raw_total": payload.get("raw_total", len(rows)),
+            "filtered_out": payload.get("filtered_out", 0),
+            "duplicates_merged": payload.get("duplicates_merged", 0),
+            "filter_reasons": payload.get("filter_reasons") or {},
+        },
         "overall": {
             "completeness": completeness(rows),
             "dates": date_metrics(rows, start, end),
@@ -207,4 +209,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -20,7 +20,10 @@ def _make_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--sources",
         default="all",
-        help="Comma-separated source slugs or 'all'. See --list-sources.",
+        help=(
+            "Comma-separated source slugs, 'all' for active sources, or "
+            "'all-including-experimental'. See --list-sources."
+        ),
     )
     p.add_argument(
         "--keyword",
@@ -32,6 +35,15 @@ def _make_parser() -> argparse.ArgumentParser:
     p.add_argument("--location", default="Japan", help="Free-text location (LinkedIn).")
     p.add_argument("--pages", type=int, default=2)
     p.add_argument("--days", type=int, default=7, help="Posted within last N days.")
+    p.add_argument(
+        "--as-of",
+        help="End date for the posted-date window (YYYY-MM-DD; default: today).",
+    )
+    p.add_argument(
+        "--include-unknown-dates",
+        action="store_true",
+        help="Retain jobs with no posted date when --days is active.",
+    )
     p.add_argument(
         "--employment-type",
         action="append",
@@ -49,12 +61,21 @@ def _make_parser() -> argparse.ArgumentParser:
     p.add_argument("--format", default="json", choices=list(FORMATTERS))
     p.add_argument("--output", help="Write to file instead of stdout.")
     p.add_argument(
+        "--database",
+        help="Upsert the filtered result into a SQLite database.",
+    )
+    p.add_argument(
         "--no-headless",
         action="store_true",
         help="Run browser in visible mode (debugging).",
     )
     p.add_argument(
         "--rate-limit", type=int, default=700, help="Inter-request pacing in ms."
+    )
+    p.add_argument(
+        "--fetch-details",
+        action="store_true",
+        help="Fetch detail pages and parse schema.org JobPosting fields.",
     )
     p.add_argument(
         "--list-sources", action="store_true", help="List available sources and exit."
@@ -112,8 +133,22 @@ async def _run(args) -> int:
         english_filter=args.english_filter or (args.language == "english"),
         headless=not args.no_headless,
         rate_limit_ms=args.rate_limit,
+        include_unknown_dates=args.include_unknown_dates,
+        fetch_details=args.fetch_details,
+        as_of=args.as_of,
         on_progress=_emit_progress(args.quiet),
     )
+
+    if args.database:
+        from jpjobs.storage import JobStore
+
+        with JobStore(args.database) as store:
+            stored = store.save_scan(result)
+        if not args.quiet:
+            print(
+                f"[jpjobs] stored {stored} jobs in {args.database}",
+                file=sys.stderr,
+            )
 
     out = format_result(result, args.format)
     if args.output:

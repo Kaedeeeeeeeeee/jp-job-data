@@ -26,6 +26,8 @@ supports = {
     "category": True,
     "employment_type": True,
     "language": False,
+    "date": True,
+    "pagination": True,
 }
 default_rate_limit_ms = 2000
 
@@ -64,6 +66,10 @@ def _parse_job_row(text: str, kjno: str) -> dict:
             "仕事内容",
             "事業所名",
             "就業場所",
+            "賃金",
+            "就業時間",
+            "休日",
+            "求人番号",
             "画像あり",
             "受付年月日",
             "紹介期限日",
@@ -161,7 +167,9 @@ async def _extract_from_page(page) -> tuple[list[dict], int, bool]:
             }
             const m = document.body.innerText.match(/(\\d+)件中\\s*\\d+/);
             const total = m ? parseInt(m[1]) : jobs.length;
-            const nextBtn = document.querySelector('a[id*="forwardBtn"], button[id*="forward"]');
+            const nextBtn = document.querySelector(
+                'input[name="fwListNaviBtnNext"], a[id*="forwardBtn"], button[id*="forward"]'
+            );
             return { jobs, total, hasNext: !!nextBtn };
         }
     """)
@@ -301,7 +309,13 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                         break
                     # next page
                     clicked = await page.evaluate("""
-                        () => { const b = document.querySelector('a[id*="forwardBtn"]'); if (b) { b.click(); return true; } return false; }
+                        () => {
+                            const b = document.querySelector(
+                                'input[name="fwListNaviBtnNext"], a[id*="forwardBtn"], button[id*="forward"]'
+                            );
+                            if (b) { b.click(); return true; }
+                            return false;
+                        }
                     """)
                     if not clicked:
                         break

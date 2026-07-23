@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-23T04:20:19Z",
+  "generated_at": "2026-07-23T04:38:47Z",
   "window": {
     "start": "2026-06-23",
     "end": "2026-07-23"
@@ -8,6 +8,12 @@
   "rows": 507,
   "source_count": 10,
   "warnings": [],
+  "pipeline": {
+    "raw_total": 507,
+    "filtered_out": 0,
+    "duplicates_merged": 0,
+    "filter_reasons": {}
+  },
   "overall": {
     "completeness": {
       "title": {

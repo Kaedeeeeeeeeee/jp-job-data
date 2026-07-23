@@ -26,6 +26,8 @@ supports = {
     "category": False,
     "employment_type": True,
     "language": True,
+    "date": True,
+    "pagination": True,
 }
 default_rate_limit_ms = 700
 
@@ -52,7 +54,9 @@ JOB_TYPE_MAP = {
     "fulltime": "F",
     "parttime": "P",
     "contract": "C",
+    "dispatch": "T",
     "temporary": "T",
+    "intern": "I",
     "internship": "I",
 }
 
@@ -147,37 +151,23 @@ async def _query_combination(
 
 
 async def scan(opts: dict[str, Any], ctx) -> list[Job]:
-    keywords = opts.get("keywords") or [
-        "IT Support",
-        "Helpdesk",
-        "Technical Support",
-        "IT Engineer",
-        "Service Desk",
-        "IT Operations",
-        "Desktop Support",
-        "Systems Administrator",
-        "IT Specialist",
-        "Onboarding",
-        "IT Technician",
-        "Deskside",
-        "End User Computing",
-        "Bilingual IT",
-    ]
+    # An omitted keyword means an unfiltered search. Source adapters must not
+    # silently substitute a role bundle because it changes the user's intent.
+    keywords = opts.get("keywords") or [""]
     location = opts.get("location") or "Japan"
     days = opts.get("days", 7)
     pages = opts.get("pages", 2)
     pacing_ms = opts.get("rate_limit_ms", 700)
     employment_types = opts.get("employment_types") or [None]
-    seniorities = opts.get("seniorities") or ["entry", "associate", "mid"]
-    job_type_codes = (
-        [None]
-        if not employment_types
-        else [et if et != "fulltime" else None for et in employment_types]
-    )
+    seniorities = opts.get("seniorities") or [None]
+    job_type_codes = employment_types or [None]
 
     seen: dict[str, Job] = {}
     headers = {
-        "User-Agent": "jpjobs/0.1 (+https://github.com/jpjobs/jpjobs)",
+        "User-Agent": (
+            "jpjobs/0.3 (+https://github.com/Kaedeeeeeeeeee/jp-job-data; "
+            "responsible research crawler)"
+        ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
     }
@@ -202,8 +192,9 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                                 title=r["title"],
                                 company=r["company"],
                                 workplace=r["location"],
+                                employment_type=jt,
                                 date_posted=r["date_posted"],
-                                matched_keyword=kw,
+                                matched_keyword=kw or None,
                                 scraped_at=now_iso(),
                             )
                             added += 1
