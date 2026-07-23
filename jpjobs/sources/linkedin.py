@@ -1,0 +1,223 @@
+"""LinkedIn jobs source via the public jobs-guest endpoint.
+
+No login required. This is the same endpoint linkedin-jobs-api (npm) uses,
+reimplemented in Python with httpx + selectolax.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+from urllib.parse import urlencode
+
+import httpx
+from selectolax.parser import HTMLParser
+
+from jpjobs.schema import Job, make_job_id, now_iso
+
+
+name = "linkedin"
+description = "LinkedIn jobs via public guest endpoint"
+status = "active"
+requires_browser = False
+supports = {
+    "prefecture": False,  # location is a free-text string
+    "keywords": True,
+    "category": False,
+    "employment_type": True,
+    "language": True,
+}
+default_rate_limit_ms = 700
+
+GUEST_URL = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+
+DATE_MAP = {
+    1: "r86400",  # past 24h
+    3: "r86400",
+    7: "r604800",  # past week
+    14: "r604800",
+    30: "r2592000",  # past month
+}
+
+EXPERIENCE_MAP = {
+    "intern": "1",
+    "entry": "2",
+    "associate": "3",
+    "mid": "4",
+    "director": "5",
+    "executive": "6",
+}
+
+JOB_TYPE_MAP = {
+    "fulltime": "F",
+    "parttime": "P",
+    "contract": "C",
+    "temporary": "T",
+    "internship": "I",
+}
+
+
+def _pick_date(days: int) -> str:
+    for k in sorted(DATE_MAP):
+        if days <= k:
+            return DATE_MAP[k]
+    return "r2592000"
+
+
+async def _fetch_page(client: httpx.AsyncClient, params: dict, start: int) -> str:
+    qs = {**params, "start": start}
+    url = f"{GUEST_URL}?{urlencode(qs)}"
+    try:
+        r = await client.get(url, timeout=15)
+        if r.status_code in (429, 403):
+            return ""
+        return r.text
+    except Exception:
+        return ""
+
+
+def _parse_card(card) -> dict | None:
+    a = card.css_first("a.base-card__full-link") or card.css_first("a.base-card")
+    if not a:
+        return None
+    href = a.attributes.get("href") or ""
+    if not href:
+        return None
+    # job ID is the trailing -digits before query string
+    import re as _re
+
+    m = _re.search(r"-(\d{8,})(?:\?|$)", href)
+    if not m:
+        return None
+    job_id = m.group(1)
+    title_el = card.css_first("h3.base-search-card__title") or card.css_first("h3")
+    title = title_el.text(strip=True) if title_el else ""
+    company_el = card.css_first("h4.base-search-card__subtitle") or card.css_first("h4")
+    company = company_el.text(strip=True) if company_el else ""
+    location_el = card.css_first("span.job-search-card__location")
+    location = location_el.text(strip=True) if location_el else ""
+    date_el = card.css_first("time")
+    date_posted = date_el.attributes.get("datetime") if date_el else None
+    return {
+        "id": job_id,
+        "title": title,
+        "company": company,
+        "location": location,
+        "url": href.split("?")[0],
+        "date_posted": date_posted,
+    }
+
+
+async def _query_combination(
+    client: httpx.AsyncClient,
+    keyword: str,
+    location: str,
+    days: int,
+    seniority: str | None,
+    job_type: str | None,
+    pages: int,
+    pacing_ms: int,
+) -> list[dict]:
+    """One (keyword × seniority) sweep, paginated."""
+    params = {
+        "keywords": keyword,
+        "location": location,
+        "f_TPR": _pick_date(days),
+    }
+    if seniority and seniority in EXPERIENCE_MAP:
+        params["f_E"] = EXPERIENCE_MAP[seniority]
+    if job_type and job_type in JOB_TYPE_MAP:
+        params["f_JT"] = JOB_TYPE_MAP[job_type]
+
+    results = []
+    for p in range(pages):
+        html = await _fetch_page(client, params, p * 25)
+        if not html:
+            break
+        tree = HTMLParser(html)
+        cards = tree.css("li") or tree.css(".base-card")
+        page_results = [c for c in (_parse_card(card) for card in cards) if c]
+        if not page_results:
+            break
+        results.extend(page_results)
+        if len(page_results) < 10:
+            break
+        await asyncio.sleep(pacing_ms / 1000)
+    return results
+
+
+async def scan(opts: dict[str, Any], ctx) -> list[Job]:
+    keywords = opts.get("keywords") or [
+        "IT Support",
+        "Helpdesk",
+        "Technical Support",
+        "IT Engineer",
+        "Service Desk",
+        "IT Operations",
+        "Desktop Support",
+        "Systems Administrator",
+        "IT Specialist",
+        "Onboarding",
+        "IT Technician",
+        "Deskside",
+        "End User Computing",
+        "Bilingual IT",
+    ]
+    location = opts.get("location") or "Japan"
+    days = opts.get("days", 7)
+    pages = opts.get("pages", 2)
+    pacing_ms = opts.get("rate_limit_ms", 700)
+    employment_types = opts.get("employment_types") or [None]
+    seniorities = opts.get("seniorities") or ["entry", "associate", "mid"]
+    job_type_codes = (
+        [None]
+        if not employment_types
+        else [et if et != "fulltime" else None for et in employment_types]
+    )
+
+    seen: dict[str, Job] = {}
+    headers = {
+        "User-Agent": "jpjobs/0.1 (+https://github.com/jpjobs/jpjobs)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+    async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
+        for kw in keywords:
+            for sen in seniorities:
+                for jt in job_type_codes:
+                    try:
+                        rows = await _query_combination(
+                            client, kw, location, days, sen, jt, pages, pacing_ms
+                        )
+                        added = 0
+                        for r in rows:
+                            sid = r["id"]
+                            if sid in seen:
+                                continue
+                            seen[sid] = Job(
+                                id=make_job_id(name, sid),
+                                source=name,
+                                source_id=sid,
+                                url=f"https://www.linkedin.com/jobs/view/{sid}",
+                                title=r["title"],
+                                company=r["company"],
+                                workplace=r["location"],
+                                date_posted=r["date_posted"],
+                                matched_keyword=kw,
+                                scraped_at=now_iso(),
+                            )
+                            added += 1
+                        ctx.emit(
+                            "source.page",
+                            source=name,
+                            keyword=kw,
+                            seniority=sen,
+                            job_type=jt,
+                            rows=len(rows),
+                            added=added,
+                            total=len(seen),
+                        )
+                    except Exception as e:
+                        ctx.emit("source.error", source=name, keyword=kw, error=str(e))
+                    await asyncio.sleep(pacing_ms / 1000)
+    return list(seen.values())
