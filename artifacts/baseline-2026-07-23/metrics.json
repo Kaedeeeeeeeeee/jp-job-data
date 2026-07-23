@@ -1,0 +1,721 @@
+{
+  "generated_at": "2026-07-23T04:20:19Z",
+  "window": {
+    "start": "2026-06-23",
+    "end": "2026-07-23"
+  },
+  "reported_total_kept": 507,
+  "rows": 507,
+  "source_count": 10,
+  "warnings": [],
+  "overall": {
+    "completeness": {
+      "title": {
+        "present": 507,
+        "rate": 1.0
+      },
+      "company": {
+        "present": 489,
+        "rate": 0.9645
+      },
+      "description_snippet": {
+        "present": 45,
+        "rate": 0.0888
+      },
+      "workplace": {
+        "present": 507,
+        "rate": 1.0
+      },
+      "prefecture": {
+        "present": 30,
+        "rate": 0.0592
+      },
+      "employment_type": {
+        "present": 147,
+        "rate": 0.2899
+      },
+      "date_posted": {
+        "present": 206,
+        "rate": 0.4063
+      },
+      "language": {
+        "present": 361,
+        "rate": 0.712
+      },
+      "wage": {
+        "present": 110,
+        "rate": 0.217
+      }
+    },
+    "dates": {
+      "known": 206,
+      "unknown": 301,
+      "invalid": 0,
+      "in_window": 193,
+      "before_window": 13,
+      "after_window": 0
+    },
+    "duplicates": {
+      "native_duplicate_groups": 0,
+      "native_duplicate_rows": 0,
+      "cross_source_exact_groups": 7,
+      "cross_source_exact_rows": 14,
+      "cross_source_examples": [
+        [
+          {
+            "source": "tokyodev",
+            "company": "Omakase Robotics",
+            "title": "SLAM & Navigation Engineer"
+          },
+          {
+            "source": "japandev",
+            "company": "Omakase Robotics",
+            "title": "SLAM & Navigation Engineer"
+          }
+        ],
+        [
+          {
+            "source": "tokyodev",
+            "company": "Omakase Robotics",
+            "title": "Autonomous Driving / 2D & 3D SLAM Engineer"
+          },
+          {
+            "source": "japandev",
+            "company": "Omakase Robotics",
+            "title": "Autonomous Driving / 2D & 3D SLAM Engineer"
+          }
+        ],
+        [
+          {
+            "source": "tokyodev",
+            "company": "Komodo",
+            "title": "Senior Staff Gameplay Engineer"
+          },
+          {
+            "source": "japandev",
+            "company": "KOMODO",
+            "title": "Senior Staff Gameplay Engineer"
+          }
+        ],
+        [
+          {
+            "source": "tokyodev",
+            "company": "Komodo",
+            "title": "Senior Gameplay Networking Engineer"
+          },
+          {
+            "source": "japandev",
+            "company": "KOMODO",
+            "title": "Senior Gameplay Networking Engineer"
+          }
+        ],
+        [
+          {
+            "source": "tokyodev",
+            "company": "Komodo",
+            "title": "VFX Artist"
+          },
+          {
+            "source": "japandev",
+            "company": "KOMODO",
+            "title": "VFX Artist"
+          }
+        ],
+        [
+          {
+            "source": "tokyodev",
+            "company": "Noeon Research",
+            "title": "Senior Backend Engineer, Automated Reasoning (Rust)"
+          },
+          {
+            "source": "japandev",
+            "company": "Noeon Research",
+            "title": "Senior Backend Engineer, Automated Reasoning (Rust)"
+          }
+        ],
+        [
+          {
+            "source": "tokyodev",
+            "company": "Noeon Research",
+            "title": "Senior ML Engineer (LLMOps)"
+          },
+          {
+            "source": "japandev",
+            "company": "Noeon Research",
+            "title": "Senior ML Engineer (LLMOps)"
+          }
+        ]
+      ]
+    },
+    "implicit_matched_keywords": {
+      "IT Support": 11,
+      "Onboarding": 10,
+      "Bilingual IT": 10,
+      "IT Engineer": 9,
+      "IT Operations": 8,
+      "Helpdesk": 6,
+      "Technical Support": 5,
+      "Systems Administrator": 5,
+      "End User Computing": 5,
+      "Deskside": 4,
+      "Desktop Support": 3,
+      "IT Specialist": 3,
+      "IT Technician": 2
+    },
+    "jobs_with_implicit_keywords": 81
+  },
+  "per_source": {
+    "daijob": {
+      "rows": 20,
+      "completeness": {
+        "title": {
+          "present": 20,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 17,
+          "rate": 0.85
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 20,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "date_posted": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "language": {
+          "present": 20,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 0,
+        "unknown": 20,
+        "invalid": 0,
+        "in_window": 0,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "forkwell": {
+      "rows": 15,
+      "completeness": {
+        "title": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "date_posted": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "language": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 0,
+        "unknown": 15,
+        "invalid": 0,
+        "in_window": 0,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "gaijinpot": {
+      "rows": 80,
+      "completeness": {
+        "title": {
+          "present": 80,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 80,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 80,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 72,
+          "rate": 0.9
+        },
+        "date_posted": {
+          "present": 80,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 80,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 80,
+          "rate": 1.0
+        }
+      },
+      "dates": {
+        "known": 80,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 80,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "green": {
+      "rows": 20,
+      "completeness": {
+        "title": {
+          "present": 20,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 20,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 20,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "date_posted": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "language": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 0,
+        "unknown": 20,
+        "invalid": 0,
+        "in_window": 0,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "hellowork": {
+      "rows": 30,
+      "completeness": {
+        "title": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "employment_type": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "date_posted": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "wage": {
+          "present": 30,
+          "rate": 1.0
+        }
+      },
+      "dates": {
+        "known": 30,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 30,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "japandev": {
+      "rows": 60,
+      "completeness": {
+        "title": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "date_posted": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "language": {
+          "present": 60,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 0,
+        "unknown": 60,
+        "invalid": 0,
+        "in_window": 0,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "jobsinjapan": {
+      "rows": 30,
+      "completeness": {
+        "title": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "date_posted": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "language": {
+          "present": 30,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 0,
+        "unknown": 30,
+        "invalid": 0,
+        "in_window": 0,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "linkedin": {
+      "rows": 81,
+      "completeness": {
+        "title": {
+          "present": 81,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 81,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 81,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "date_posted": {
+          "present": 81,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 81,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 81,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "tokyodev": {
+      "rows": 156,
+      "completeness": {
+        "title": {
+          "present": 156,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 156,
+          "rate": 1.0
+        },
+        "description_snippet": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "workplace": {
+          "present": 156,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "date_posted": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "language": {
+          "present": 156,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 0,
+        "unknown": 156,
+        "invalid": 0,
+        "in_window": 0,
+        "before_window": 0,
+        "after_window": 0
+      }
+    },
+    "wantedly": {
+      "rows": 15,
+      "completeness": {
+        "title": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "company": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "description_snippet": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "workplace": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "prefecture": {
+          "present": 0,
+          "rate": 0.0
+        },
+        "employment_type": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "date_posted": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "language": {
+          "present": 15,
+          "rate": 1.0
+        },
+        "wage": {
+          "present": 0,
+          "rate": 0.0
+        }
+      },
+      "dates": {
+        "known": 15,
+        "unknown": 0,
+        "invalid": 0,
+        "in_window": 2,
+        "before_window": 13,
+        "after_window": 0
+      }
+    }
+  },
+  "reported_per_source": [
+    {
+      "name": "hellowork",
+      "kept": 30,
+      "total": 30,
+      "error": null
+    },
+    {
+      "name": "linkedin",
+      "kept": 81,
+      "total": 81,
+      "error": null
+    },
+    {
+      "name": "tokyodev",
+      "kept": 156,
+      "total": 156,
+      "error": null
+    },
+    {
+      "name": "japandev",
+      "kept": 60,
+      "total": 60,
+      "error": null
+    },
+    {
+      "name": "daijob",
+      "kept": 20,
+      "total": 20,
+      "error": null
+    },
+    {
+      "name": "gaijinpot",
+      "kept": 80,
+      "total": 80,
+      "error": null
+    },
+    {
+      "name": "jobsinjapan",
+      "kept": 30,
+      "total": 30,
+      "error": null
+    },
+    {
+      "name": "green",
+      "kept": 20,
+      "total": 20,
+      "error": null
+    },
+    {
+      "name": "forkwell",
+      "kept": 15,
+      "total": 15,
+      "error": null
+    },
+    {
+      "name": "wantedly",
+      "kept": 15,
+      "total": 15,
+      "error": null
+    }
+  ]
+}
