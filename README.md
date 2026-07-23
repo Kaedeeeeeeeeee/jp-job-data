@@ -34,12 +34,11 @@ The optimized pipeline adds:
 
 ## Sources
 
-**10 active** sources returning real jobs as of v0.4:
+**9 active** sources returning real jobs as of v0.4:
 
 | Slug          | Type                     | Browser? | Description |
 |---------------|--------------------------|----------|-------------|
 | `hellowork`   | Playwright (Maba form)   | yes      | Japan MHLW government board |
-| `linkedin`    | HTTP (jobs-guest)        | no       | LinkedIn public guest endpoint |
 | `tokyodev`    | HTTP                     | no       | English-first IT |
 | `japandev`    | HTTP                     | no       | English-first IT |
 | `daijob`      | HTTP                     | no       | Bilingual professional |
@@ -49,10 +48,17 @@ The optimized pipeline adds:
 | `forkwell`    | HTTP                     | no       | Engineer-focused |
 | `wantedly`    | HTTP                     | no       | Startups (public side) |
 
-**7 experimental** (anti-bot or login walls — contributions welcome):
-`indeed`, `careercross`, `jrecin`, `otta`, `wellfound`, `doda`, `enworld`
+**8 opt-in / experimental** sources:
+`linkedin`, `indeed`, `careercross`, `jrecin`, `otta`, `wellfound`, `doda`,
+`enworld`
 
-A typical Tokyo IT-Support scan across the 10 active sources returns **~300–400 deduplicated jobs**.
+LinkedIn remains available when explicitly requested, but it is excluded from
+`--sources=all` because its public guest listings were consistently too vague
+for this project's quality bar: descriptions, responsibilities, and
+compensation were often missing or non-actionable.
+
+A typical broad scan across the 9 active sources returns hundreds of
+deduplicated jobs.
 
 ## Install
 
@@ -74,7 +80,7 @@ jpjobs --days=30 --pages=auto --max-pages=50 \
        --fetch-details --output=jobs.json
 
 # Tokyo English-friendly only, ready to paste into an AI assistant
-jpjobs --sources=linkedin,tokyodev,japandev,gaijinpot \
+jpjobs --sources=tokyodev,japandev,gaijinpot \
        --keyword="IT Support" --prefecture=tokyo \
        --format=llm > jobs.txt
 ```
@@ -122,7 +128,7 @@ See [`AGENTS.md`](./AGENTS.md). Typical flow:
 
 ```bash
 # 1. Scan
-jpjobs --sources=linkedin,tokyodev,gaijinpot \
+jpjobs --sources=tokyodev,japandev,gaijinpot \
        --keyword="IT Support" --format=llm > jobs.txt
 
 # 2. Open one of the prompts, paste your resume + jobs.txt into Claude / ChatGPT

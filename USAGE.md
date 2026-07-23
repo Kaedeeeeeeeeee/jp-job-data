@@ -30,7 +30,7 @@ python -m pip install -e .
 playwright install chromium
 ```
 
-The other 8 sources work without this.
+The other 8 default sources work without this.
 
 ---
 
@@ -59,7 +59,7 @@ jpjobs --keyword="IT Support" --prefecture=tokyo --output=jobs.json
 ### "Find English-friendly Tokyo IT roles"
 
 ```bash
-jpjobs --sources=linkedin,tokyodev,japandev,gaijinpot,jobsinjapan \
+jpjobs --sources=tokyodev,japandev,gaijinpot,jobsinjapan \
        --keyword="IT Support" \
        --prefecture=tokyo \
        --english-filter \
@@ -123,7 +123,7 @@ Repeated runs preserve each job's first- and last-seen timestamps.
 ### Step 1 — scan with the LLM-friendly format
 
 ```bash
-jpjobs --sources=linkedin,tokyodev,gaijinpot \
+jpjobs --sources=tokyodev,japandev,gaijinpot \
        --keyword="IT Support" \
        --format=llm > jobs.txt
 ```

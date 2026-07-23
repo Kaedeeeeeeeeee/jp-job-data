@@ -25,7 +25,7 @@ flowchart TD
 
 ```bash
 jpjobs \
-  --sources=hellowork,linkedin,tokyodev,japandev,daijob,gaijinpot,jobsinjapan,green,forkwell,wantedly \
+  --sources=all \
   --days=30 \
   --pages=auto \
   --max-pages=50 \
@@ -51,7 +51,7 @@ jpjobs \
 | 平台 | 自动分页依据 |
 |---|---|
 | HelloWork | 浏览器翻页和列表受付日期；岗位量大时可能触发安全上限 |
-| LinkedIn | 公共访客接口的服务端日期过滤，翻到接口结束 |
+| LinkedIn（显式可选） | 默认排除；公共访客岗位的信息质量不足，仅在明确指定时运行 |
 | TokyoDev | 单个列表响应返回全部库存，不需要翻页 |
 | JapanDev | Algolia 默认结果不是严格日期排序，因此自动模式遍历整个索引或到安全上限 |
 | Daijob | 使用 Activated date 排序，并探测每页最旧岗位的详情日期 |

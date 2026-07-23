@@ -4,7 +4,12 @@ If you're an AI assistant reading this, `jpjobs` lets you discover Japan job-boa
 
 ## What jpjobs is
 
-A unified Python CLI that scrapes major Japan job boards (HelloWork, LinkedIn, TokyoDev, JapanDev, GaijinPot, JobsInJapan, Daijob, Green, Forkwell, Wantedly + 7 experimental) and normalizes the output into a single job schema. The default `all` selection runs active sources only. No accounts or private API keys are required.
+A unified Python CLI that scrapes nine default Japan job boards (HelloWork,
+TokyoDev, JapanDev, GaijinPot, JobsInJapan, Daijob, Green, Forkwell, Wantedly)
+plus opt-in sources and normalizes the output into a single job schema.
+LinkedIn is intentionally opt-in because its public guest listings often lack
+actionable descriptions and compensation. The default `all` selection runs
+active sources only. No accounts or private API keys are required.
 
 ## What to ask the user before scanning
 
@@ -21,7 +26,7 @@ Don't assume — ask:
 Run via Bash, parse JSON. Recommended chain:
 
 ```bash
-jpjobs --sources=linkedin,hellowork \
+jpjobs --sources=hellowork,tokyodev \
        --keyword="IT Support" \
        --prefecture=tokyo \
        --english-filter \

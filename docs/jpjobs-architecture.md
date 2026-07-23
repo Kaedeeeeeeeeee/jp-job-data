@@ -8,11 +8,11 @@
 ```mermaid
 flowchart TD
     A["用户调用<br/>CLI 或 Python API"] --> B["解析查询与输出参数"]
-    B --> C["选择 10 个 active 来源<br/>或用户指定来源"]
+    B --> C["选择 9 个 active 来源<br/>或用户指定来源"]
     C --> D["最多 2 个来源并发运行"]
 
     D --> E1["浏览器适配器<br/>HelloWork"]
-    D --> E2["HTTP / 公开接口适配器<br/>其余 9 个 active 来源"]
+    D --> E2["HTTP / 公开接口适配器<br/>其余 8 个 active 来源"]
 
     E1 --> F["平台搜索、排序和分页"]
     E2 --> F

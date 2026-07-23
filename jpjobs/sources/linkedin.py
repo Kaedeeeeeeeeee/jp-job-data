@@ -18,8 +18,10 @@ from jpjobs.schema import Job, make_job_id, now_iso
 
 
 name = "linkedin"
-description = "LinkedIn jobs via public guest endpoint"
-status = "active"
+description = (
+    "LinkedIn public guest endpoint (opt-in: listings often lack actionable detail)"
+)
+status = "experimental"
 requires_browser = False
 supports = {
     "prefecture": False,  # location is a free-text string
