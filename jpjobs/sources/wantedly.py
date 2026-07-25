@@ -118,7 +118,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                 source=name,
                 keyword=kw,
             )
-            for page_num in range(1, pagination.limit + 1):
+            for page_num in pagination.page_numbers():
                 params = {
                     "country_code": "JP",
                     "page": page_num,
@@ -166,6 +166,10 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     job_id not in query_seen for job_id, _, _ in page_rows
                 )
                 query_seen.update(job_id for job_id, _, _ in page_rows)
+                page_dates = [
+                    job_post.get("publishedAt")
+                    for _, job_post, _ in page_rows
+                ]
                 page_count = 0
                 page_jobs: list[Job] = []
                 for jid, jp, co in page_rows:
@@ -233,10 +237,13 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     page=page_num,
                     rows=len(page_rows),
                     added=query_added,
-                    dates=[job.date_posted for job in page_jobs],
+                    dates=page_dates,
                     has_next=has_next,
-                    date_ordered=True,
+                    # Offset pages can contain promoted/reordered projects, so
+                    # one all-old page cannot prove that later pages are old.
+                    date_ordered=False,
                     stop_on_no_new=True,
+                    no_new_tolerance=3,
                 )
                 if decision.stop:
                     break

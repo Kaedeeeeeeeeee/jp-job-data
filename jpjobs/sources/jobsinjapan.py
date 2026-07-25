@@ -140,7 +140,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                 source=name,
                 keyword=keyword,
             )
-            for page_num in range(1, pagination.limit + 1):
+            for page_num in pagination.page_numbers():
                 params: dict[str, str] = {"orderby": "date"}
                 if keyword:
                     path = "" if page_num == 1 else f"page/{page_num}/"

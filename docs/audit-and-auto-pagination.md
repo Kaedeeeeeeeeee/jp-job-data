@@ -36,6 +36,27 @@ jpjobs \
 `--max-pages` 是每个平台、每组查询的安全上限。调高它会提高可能的覆盖率，
 但也会增加请求量、运行时间和详情页补全成本。
 
+对于岗位量差异很大的平台，可以单独设置上限并保存断点：
+
+```bash
+jpjobs \
+  --sources=hellowork,daijob \
+  --days=30 \
+  --as-of=2026-07-25 \
+  --pages=auto \
+  --source-max-pages=hellowork=425 \
+  --source-max-pages=daijob=400 \
+  --start-page=hellowork=51 \
+  --start-page=daijob=51 \
+  --checkpoint=data/30-day-pages.json \
+  --database=data/jobs.sqlite3 \
+  --output=continued-jobs.json
+```
+
+之后使用相同参数再次运行时，`--checkpoint` 会从最后成功处理页的下一页
+继续。HTTP 平台可以直接跳转；HelloWork 的结果页依赖浏览器会话，因此会先
+快速重放前面的翻页操作再恢复收集。
+
 输出中每个平台包含：
 
 - `pages_fetched`：实际获取的页面数；
@@ -59,7 +80,7 @@ jpjobs \
 | JobsInJapan | 使用日期排序和列表相对时间，并识别站点下一页 |
 | Green | 使用更新顺序和列表内更新时间信号 |
 | Forkwell | 使用新着顺序，并探测每页最旧岗位的结构化发布日期 |
-| Wantedly | 使用 recent 顺序和真实 offset 结果，排除页面缓存中的推荐岗位 |
+| Wantedly | 读取真实 offset 结果；容忍动态列表造成的短暂重复，连续三页无新增才停止 |
 
 ## 生成省事的人工抽检页面
 

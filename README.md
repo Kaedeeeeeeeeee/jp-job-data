@@ -98,6 +98,9 @@ See [USAGE.md](./USAGE.md) for a step-by-step walkthrough including troubleshoot
 | `--location`          | Free-text location (LinkedIn)                                 |
 | `--pages`             | Page depth, or `auto` to continue through the date window     |
 | `--max-pages`         | Per-source safety cap for automatic pagination (default 50)   |
+| `--source-max-pages`  | Override the auto cap for one source (`SOURCE=N`; repeatable)  |
+| `--start-page`        | Resume one source at a page (`SOURCE=N`; repeatable)           |
+| `--checkpoint`        | Save page progress to JSON and resume matching scans           |
 | `--days`              | Posted-within window (default 7)                              |
 | `--as-of`             | Reproducible end date for the window (`YYYY-MM-DD`)           |
 | `--include-unknown-dates` | Keep rows whose posted date cannot be verified            |

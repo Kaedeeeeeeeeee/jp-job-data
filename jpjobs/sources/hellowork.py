@@ -177,6 +177,123 @@ async def _extract_from_page(page) -> tuple[list[dict], int, bool]:
     return raw["jobs"], raw["total"], raw["hasNext"]
 
 
+async def _advance_results_page(page, *, settle_ms: int = 700) -> bool:
+    """Advance once and verify that the first listing actually changed."""
+    selector = (
+        'input[name="fwListNaviBtnNext"], '
+        'a[id*="forwardBtn"], button[id*="forward"]'
+    )
+    for _attempt in range(3):
+        previous_href = await page.evaluate(
+            """() => {
+                const link = document.querySelector(
+                    'table.kyujin a[href*="dispDetailBtn"]'
+                );
+                return link ? link.getAttribute('href') : '';
+            }"""
+        )
+        clicked = await page.evaluate(
+            """(selector) => {
+                const button = document.querySelector(selector);
+                if (!button) return false;
+                button.click();
+                return true;
+            }""",
+            selector,
+        )
+        if not clicked:
+            await page.wait_for_timeout(1000)
+            continue
+        try:
+            await page.wait_for_function(
+                """(previous) => {
+                    const link = document.querySelector(
+                        'table.kyujin a[href*="dispDetailBtn"]'
+                    );
+                    const current = link ? link.getAttribute('href') : '';
+                    return current && current !== previous;
+                }""",
+                arg=previous_href,
+                timeout=15000,
+            )
+        except Exception:
+            await page.wait_for_timeout(1000)
+            continue
+        await page.wait_for_timeout(settle_ms)
+        return True
+    return False
+
+
+async def _jump_to_results_page(page, target_page: int) -> bool:
+    """Use HelloWork's five-page navigation groups to restore a session."""
+    for _attempt in range(max(1, target_page)):
+        state = await page.evaluate(
+            """() => ({
+                current: Number(
+                    document.querySelector('input[name="fwListNowPage"]')
+                        ?.value || 1
+                ),
+                controls: [
+                    ...document.querySelectorAll(
+                        'input[name^="fwListNaviBtn"]'
+                    )
+                ].map(control => ({
+                    name: control.name || '',
+                    value: control.value || ''
+                }))
+            })"""
+        )
+        current_page = int(state["current"])
+        if current_page == target_page:
+            return True
+        candidates: list[tuple[int, str, str]] = []
+        for control in state["controls"]:
+            match = re.search(r"\d+", control["value"])
+            if not match:
+                continue
+            destination = int(match.group(0))
+            if current_page < destination <= target_page:
+                candidates.append(
+                    (destination, control["name"], control["value"])
+                )
+        if not candidates:
+            return False
+        destination, name_value, button_value = max(candidates)
+        clicked = await page.evaluate(
+            """({name, value}) => {
+                const button = [
+                    ...document.querySelectorAll(
+                        'input[name^="fwListNaviBtn"]'
+                    )
+                ].find(
+                    candidate =>
+                        candidate.name === name && candidate.value === value
+                );
+                if (!button) return false;
+                button.click();
+                return true;
+            }""",
+            {"name": name_value, "value": button_value},
+        )
+        if not clicked:
+            return False
+        try:
+            await page.wait_for_function(
+                """(expected) =>
+                    Number(
+                        document.querySelector('input[name="fwListNowPage"]')
+                            ?.value || 0
+                    ) === expected
+                """,
+                arg=destination,
+                timeout=15000,
+            )
+        except Exception:
+            return False
+        await page.wait_for_timeout(500)
+    return False
+
+
 async def _setup_search(
     page, keyword: str, prefecture: str | None, employment_types: list[str]
 ) -> None:
@@ -265,7 +382,22 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     keyword=kw,
                 )
                 await _setup_search(page, kw, prefecture, employment_types)
-                for page_num in range(1, pagination.limit + 1):
+                pending_pages = pagination.page_numbers()
+                if not pending_pages:
+                    continue
+                if pagination.start_page > 1:
+                    if not await _jump_to_results_page(
+                        page, pagination.start_page
+                    ):
+                        pagination.abort(1, "resume_replay_failed")
+                        continue
+                    ctx.emit(
+                        "source.page_replay",
+                        source=name,
+                        keyword=kw,
+                        page=pagination.start_page,
+                    )
+                for page_num in pending_pages:
                     rows, total, has_next = await _extract_from_page(page)
                     before_count = len(seen)
                     page_dates: list[str | None] = []
@@ -330,19 +462,9 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     if decision.stop:
                         break
                     # next page
-                    clicked = await page.evaluate("""
-                        () => {
-                            const b = document.querySelector(
-                                'input[name="fwListNaviBtnNext"], a[id*="forwardBtn"], button[id*="forward"]'
-                            );
-                            if (b) { b.click(); return true; }
-                            return false;
-                        }
-                    """)
-                    if not clicked:
+                    if not await _advance_results_page(page, settle_ms=1200):
+                        pagination.abort(page_num, "next_page_failed")
                         break
-                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                    await page.wait_for_timeout(1200)
             except Exception as e:
                 ctx.emit("source.error", source=name, keyword=kw, error=str(e))
     finally:

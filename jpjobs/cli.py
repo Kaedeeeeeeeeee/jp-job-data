@@ -34,6 +34,14 @@ def _positive_int(value: str) -> int:
     return number
 
 
+def _source_page(value: str) -> tuple[str, int]:
+    source, separator, raw_page = value.partition("=")
+    source = source.strip()
+    if not separator or not source:
+        raise argparse.ArgumentTypeError("use SOURCE=PAGE, for example daijob=250")
+    return source, _positive_int(raw_page)
+
+
 def _make_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="jpjobs",
@@ -70,6 +78,35 @@ def _make_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=50,
         help="Safety cap per source/query when --pages=auto (default: 50).",
+    )
+    p.add_argument(
+        "--source-max-pages",
+        action="append",
+        type=_source_page,
+        default=[],
+        metavar="SOURCE=N",
+        help=(
+            "Override the automatic safety cap for one source; can repeat "
+            "(for example hellowork=250)."
+        ),
+    )
+    p.add_argument(
+        "--start-page",
+        action="append",
+        type=_source_page,
+        default=[],
+        metavar="SOURCE=N",
+        help=(
+            "Start or resume one source at this one-based page; can repeat. "
+            "Browser sources may replay earlier pages to restore their session."
+        ),
+    )
+    p.add_argument(
+        "--checkpoint",
+        help=(
+            "Persist automatic-pagination progress to JSON and resume it on "
+            "the next run with matching filters."
+        ),
     )
     p.add_argument("--days", type=int, default=7, help="Posted within last N days.")
     p.add_argument(
@@ -149,6 +186,26 @@ async def _run(args) -> int:
         if args.sources == "all"
         else [s.strip() for s in args.sources.split(",")]
     )
+    if (
+        args.source_max_pages or args.start_page or args.checkpoint
+    ) and args.pages is not None:
+        print(
+            "[jpjobs] --source-max-pages, --start-page, and --checkpoint "
+            "require --pages=auto.",
+            file=sys.stderr,
+        )
+        return 2
+    source_max_pages = dict(args.source_max_pages)
+    start_pages = dict(args.start_page)
+    for source, start_page in start_pages.items():
+        limit = source_max_pages.get(source, args.max_pages)
+        if start_page > limit:
+            print(
+                f"[jpjobs] start page {start_page} exceeds the {source} "
+                f"maximum page {limit}.",
+                file=sys.stderr,
+            )
+            return 2
     pref_code = slug_to_code(args.prefecture) if args.prefecture else None
     if args.prefecture and not pref_code:
         print(
@@ -165,6 +222,9 @@ async def _run(args) -> int:
         prefecture_code=pref_code,
         pages=args.pages,
         max_pages=args.max_pages,
+        source_max_pages=source_max_pages,
+        start_pages=start_pages,
+        checkpoint_path=args.checkpoint,
         days=args.days,
         employment_types=args.employment_types,
         language=args.language,

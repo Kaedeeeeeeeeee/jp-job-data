@@ -91,6 +91,24 @@ The JSON `per_source` section records `pages_fetched`,
 `pagination_stop_reasons`, and `coverage_complete`. A safety-cap warning means
 the output is valid but that source may still have more in-window jobs.
 
+Large sources can use independent caps and a durable resume checkpoint:
+
+```bash
+jpjobs --sources=hellowork,daijob \
+       --days=30 --as-of=2026-07-25 --pages=auto \
+       --source-max-pages=hellowork=425 \
+       --source-max-pages=daijob=400 \
+       --checkpoint=data/30-day-pages.json \
+       --database=data/jobs.sqlite3 \
+       --output=continued-jobs.json
+```
+
+If the process is interrupted, run the same command again. HTTP sources jump
+directly to the next saved page. HelloWork must rebuild its session-bound
+search and quickly replay earlier page transitions before collecting new
+pages. To seed a checkpoint after an older run, add a repeatable
+`--start-page=SOURCE=N` option, such as `--start-page=daijob=51`.
+
 ### "Open a simple browser page for manual data review"
 
 ```bash

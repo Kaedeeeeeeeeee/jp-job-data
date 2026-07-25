@@ -8,8 +8,10 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any, Callable, Optional
 
+from jpjobs.checkpoint import PageCheckpoint
 from jpjobs.enrich import DetailStats, enrich_jobs
 from jpjobs.filtering import evaluate_job
 from jpjobs.normalize import job_fingerprint, normalize_job, parse_date
@@ -313,6 +315,9 @@ async def scan(
     prefecture_code: str | None = None,
     pages: int | None = 2,
     max_pages: int = 50,
+    source_max_pages: dict[str, int] | None = None,
+    start_pages: dict[str, int] | None = None,
+    checkpoint_path: str | Path | None = None,
     days: int | None = 7,
     employment_types: list[str] | None = None,
     language: str | None = None,
@@ -365,6 +370,8 @@ async def scan(
         "pages": pages if pages is not None else 2,
         "auto_pages": pages is None,
         "max_pages": max_pages,
+        "source_max_pages": source_max_pages or {},
+        "start_pages": start_pages or {},
         "days": days,
         "as_of": as_of_date.isoformat(),
         "cutoff_date": (
@@ -377,6 +384,25 @@ async def scan(
         "english_filter": english_filter,
         "rate_limit_ms": rate_limit_ms,
     }
+    if checkpoint_path:
+        checkpoint_parameters = {
+            "keywords": keywords or [],
+            "location": location,
+            "prefecture": prefecture,
+            "prefecture_code": prefecture_code,
+            "auto_pages": pages is None,
+            "days": days,
+            "as_of": as_of_date.isoformat(),
+            "employment_types": employment_types or [],
+            "language": language,
+            "english_filter": english_filter,
+            "include_unknown_dates": include_unknown_dates,
+            "fetch_details": fetch_details,
+        }
+        opts["_checkpoint"] = PageCheckpoint(
+            checkpoint_path,
+            parameters=checkpoint_parameters,
+        )
     ctx = Ctx(on_progress=on_progress, headless=headless)
     semaphore = asyncio.Semaphore(concurrency)
 

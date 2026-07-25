@@ -17,3 +17,6 @@ build/
 artifacts/**/screenshots/
 artifacts/**/html/
 
+# Local scan databases, resume state, and large full-run snapshots.
+data/
+artifacts/full-*/

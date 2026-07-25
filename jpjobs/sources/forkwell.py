@@ -122,7 +122,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                 source=name,
                 keyword=keyword,
             )
-            for page_num in range(1, pagination.limit + 1):
+            for page_num in pagination.page_numbers():
                 params: dict[str, Any] = {
                     "page": page_num,
                     "q[sort]": "published_at desc",

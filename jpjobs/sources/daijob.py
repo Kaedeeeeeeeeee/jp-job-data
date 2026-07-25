@@ -68,16 +68,30 @@ def _parse_page(
             company = (logo.attributes.get("alt") or "").strip() if logo else ""
 
         workplace = ""
+        description = ""
         for term in card.css(".job-card__detail dt"):
-            if "Location" not in term.text(strip=True):
-                continue
+            label = term.text(strip=True)
             definition = term.next
             while definition is not None and getattr(definition, "tag", "") != "dd":
                 definition = definition.next
-            if definition is not None:
+            if definition is None:
+                continue
+            if "Location" in label:
                 parts = [anchor.text(strip=True) for anchor in definition.css("a")]
                 workplace = ", ".join(part for part in parts if part)[:200]
-            break
+                if not workplace:
+                    workplace = definition.text(separator=" ", strip=True)[:200]
+            elif "Job Description" in label:
+                description = definition.text(separator=" ", strip=True)[:400]
+        activated = None
+        activated_node = card.css_first("p.text-end.text-secondary")
+        if activated_node:
+            activated_match = re.search(
+                r"\bActivated\s*:\s*(\d{4}-\d{2}-\d{2})\b",
+                activated_node.text(separator=" ", strip=True),
+                re.I,
+            )
+            activated = activated_match.group(1) if activated_match else None
         full_url = (
             href
             if href.startswith("http")
@@ -90,7 +104,10 @@ def _parse_page(
             url=full_url,
             title=title,
             company=company,
+            description=description,
+            description_snippet=description,
             workplace=workplace or "Japan",
+            date_posted=activated,
             language=["bilingual"],
             matched_keyword=keyword or None,
             scraped_at=now_iso(),
@@ -128,7 +145,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                 source=name,
                 keyword=keyword,
             )
-            for page_num in range(1, pagination.limit + 1):
+            for page_num in pagination.page_numbers():
                 params: dict[str, Any] = {
                     "job_post_language": 1,
                     "sort_order": 2,
@@ -148,9 +165,13 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     )
                     break
                 rows, added, page_jobs = _parse_page(html, keyword, seen)
-                oldest_date = None
+                oldest_date = (
+                    page_jobs[-1].date_posted if page_jobs else None
+                )
                 if pagination.auto and pagination.cutoff and page_jobs:
-                    oldest_date = await _probe_activated_date(client, page_jobs[-1])
+                    oldest_date = oldest_date or await _probe_activated_date(
+                        client, page_jobs[-1]
+                    )
                     if oldest_date:
                         page_jobs[-1].date_posted = oldest_date
                 ctx.emit(
