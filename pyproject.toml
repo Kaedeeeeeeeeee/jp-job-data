@@ -30,7 +30,7 @@ Repository = "https://github.com/Kaedeeeeeeeeee/jp-job-data"
 Documentation = "https://github.com/Kaedeeeeeeeeee/jp-job-data/tree/main/docs"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.8"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.8,<0.16"]
 
 [project.scripts]
 jpjobs = "jpjobs.cli:main"

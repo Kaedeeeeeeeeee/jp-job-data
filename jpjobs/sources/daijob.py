@@ -165,9 +165,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                     )
                     break
                 rows, added, page_jobs = _parse_page(html, keyword, seen)
-                oldest_date = (
-                    page_jobs[-1].date_posted if page_jobs else None
-                )
+                oldest_date = page_jobs[-1].date_posted if page_jobs else None
                 if pagination.auto and pagination.cutoff and page_jobs:
                     oldest_date = oldest_date or await _probe_activated_date(
                         client, page_jobs[-1]

@@ -167,8 +167,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                 )
                 query_seen.update(job_id for job_id, _, _ in page_rows)
                 page_dates = [
-                    job_post.get("publishedAt")
-                    for _, job_post, _ in page_rows
+                    job_post.get("publishedAt") for _, job_post, _ in page_rows
                 ]
                 page_count = 0
                 page_jobs: list[Job] = []

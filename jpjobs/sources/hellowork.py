@@ -180,8 +180,7 @@ async def _extract_from_page(page) -> tuple[list[dict], int, bool]:
 async def _advance_results_page(page, *, settle_ms: int = 700) -> bool:
     """Advance once and verify that the first listing actually changed."""
     selector = (
-        'input[name="fwListNaviBtnNext"], '
-        'a[id*="forwardBtn"], button[id*="forward"]'
+        'input[name="fwListNaviBtnNext"], a[id*="forwardBtn"], button[id*="forward"]'
     )
     for _attempt in range(3):
         previous_href = await page.evaluate(
@@ -253,9 +252,7 @@ async def _jump_to_results_page(page, target_page: int) -> bool:
                 continue
             destination = int(match.group(0))
             if current_page < destination <= target_page:
-                candidates.append(
-                    (destination, control["name"], control["value"])
-                )
+                candidates.append((destination, control["name"], control["value"]))
         if not candidates:
             return False
         destination, name_value, button_value = max(candidates)
@@ -386,9 +383,7 @@ async def scan(opts: dict[str, Any], ctx) -> list[Job]:
                 if not pending_pages:
                     continue
                 if pagination.start_page > 1:
-                    if not await _jump_to_results_page(
-                        page, pagination.start_page
-                    ):
+                    if not await _jump_to_results_page(page, pagination.start_page):
                         pagination.abort(1, "resume_replay_failed")
                         continue
                     ctx.emit(

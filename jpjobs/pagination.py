@@ -58,8 +58,8 @@ class PaginationController:
         checkpoint_start = 1
         self.checkpoint_complete = False
         if self.checkpoint:
-            checkpoint_start, self.checkpoint_complete = (
-                self.checkpoint.resume_state(source, keyword, self.context)
+            checkpoint_start, self.checkpoint_complete = self.checkpoint.resume_state(
+                source, keyword, self.context
             )
         manual_start = int((opts.get("start_pages") or {}).get(source, 1))
         self.start_page = max(1, checkpoint_start, manual_start)
@@ -148,10 +148,7 @@ class PaginationController:
             and max(parsed_dates) < self.cutoff
         ):
             decision = PageDecision(True, "date_boundary", True, oldest)
-        elif (
-            stop_on_no_new
-            and self._consecutive_no_new >= max(1, no_new_tolerance)
-        ):
+        elif stop_on_no_new and self._consecutive_no_new >= max(1, no_new_tolerance):
             decision = PageDecision(True, "repeated_page", False, oldest)
         elif page >= self.limit:
             reason = "safety_cap" if self.auto else "page_limit"
