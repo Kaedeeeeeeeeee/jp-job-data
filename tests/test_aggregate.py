@@ -1,6 +1,8 @@
 import asyncio
 
+import jpjobs.aggregate as aggregate
 from jpjobs.aggregate import Ctx, _deduplicate, _run_source
+from jpjobs.enrich import DetailStats
 from jpjobs.normalize import normalize_job
 from jpjobs.schema import Job
 
@@ -55,3 +57,42 @@ def test_internal_source_error_is_not_reported_as_success():
     outcome = asyncio.run(_run_source(Source, {}, Ctx()))
     assert outcome.status == "blocked"
     assert "403" in outcome.error
+
+
+def test_incremental_detail_fetch_skips_known_source_ids(monkeypatch):
+    class Source:
+        name = "fake"
+        status = "active"
+
+        @staticmethod
+        async def scan(opts, ctx):
+            ctx.emit(
+                "source.pagination_stop",
+                source="fake",
+                reason="source_end",
+                coverage_complete=True,
+            )
+            return [
+                make_job("fake", "known"),
+                make_job("fake", "new"),
+            ]
+
+    attempted = []
+
+    async def fake_enrich(jobs, **_):
+        attempted.extend(job.source_id for job in jobs)
+        return jobs, {"fake": DetailStats(attempted=len(jobs))}
+
+    monkeypatch.setitem(aggregate._EXTRA_SOURCES, "fake", Source)
+    monkeypatch.setattr(aggregate, "enrich_jobs", fake_enrich)
+    result = asyncio.run(
+        aggregate.scan(
+            sources=["fake"],
+            days=None,
+            fetch_details=True,
+            skip_detail_keys={("fake", "known")},
+        )
+    )
+
+    assert attempted == ["new"]
+    assert result.total_kept == 2

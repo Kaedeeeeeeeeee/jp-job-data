@@ -12,6 +12,7 @@ build/
 *.egg-info/
 
 .DS_Store
+.env
 
 # Browser and local run diagnostics may contain large or transient data.
 artifacts/**/screenshots/

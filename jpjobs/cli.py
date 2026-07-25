@@ -139,6 +139,40 @@ def _make_parser() -> argparse.ArgumentParser:
         help="Upsert the filtered result into a SQLite database.",
     )
     p.add_argument(
+        "--maintain-database",
+        action="store_true",
+        help=(
+            "Reconcile missing jobs after complete source scans, expire old jobs, "
+            "and purge aged tombstones. Requires --database and --pages=auto."
+        ),
+    )
+    p.add_argument(
+        "--missing-threshold",
+        type=_positive_int,
+        default=3,
+        help="Complete scans a listing may miss before withdrawal (default: 3).",
+    )
+    p.add_argument(
+        "--retention-days",
+        type=_positive_int,
+        default=90,
+        help="Expire jobs older than this many posted days (default: 90).",
+    )
+    p.add_argument(
+        "--purge-grace-days",
+        type=int,
+        default=30,
+        help="Keep withdrawn/expired tombstones this many days (default: 30).",
+    )
+    p.add_argument(
+        "--fetch-details-new-only",
+        action="store_true",
+        help=(
+            "With --fetch-details and --database, fetch detail pages only for "
+            "previously unseen or reactivated source listings."
+        ),
+    )
+    p.add_argument(
         "--no-headless",
         action="store_true",
         help="Run browser in visible mode (debugging).",
@@ -195,6 +229,48 @@ async def _run(args) -> int:
             file=sys.stderr,
         )
         return 2
+    if args.maintain_database:
+        if not args.database:
+            print(
+                "[jpjobs] --maintain-database requires --database.",
+                file=sys.stderr,
+            )
+            return 2
+        if args.pages is not None:
+            print(
+                "[jpjobs] --maintain-database requires --pages=auto.",
+                file=sys.stderr,
+            )
+            return 2
+        if any(
+            (
+                args.keywords,
+                args.prefecture,
+                args.employment_types,
+                args.language,
+                args.english_filter,
+            )
+        ):
+            print(
+                "[jpjobs] database maintenance requires an unfiltered source "
+                "inventory; remove keyword, location, employment, and language "
+                "filters.",
+                file=sys.stderr,
+            )
+            return 2
+    if args.purge_grace_days < 0:
+        print(
+            "[jpjobs] --purge-grace-days cannot be negative.",
+            file=sys.stderr,
+        )
+        return 2
+    if args.fetch_details_new_only and (not args.database or not args.fetch_details):
+        print(
+            "[jpjobs] --fetch-details-new-only requires both --database and "
+            "--fetch-details.",
+            file=sys.stderr,
+        )
+        return 2
     source_max_pages = dict(args.source_max_pages)
     start_pages = dict(args.start_page)
     for source, start_page in start_pages.items():
@@ -213,6 +289,13 @@ async def _run(args) -> int:
             file=sys.stderr,
         )
         return 2
+
+    skip_detail_keys = None
+    if args.fetch_details_new_only:
+        from jpjobs.storage import JobStore
+
+        with JobStore(args.database) as store:
+            skip_detail_keys = store.known_sighting_keys()
 
     result = await scan(
         sources=sources,
@@ -233,6 +316,7 @@ async def _run(args) -> int:
         rate_limit_ms=args.rate_limit,
         include_unknown_dates=args.include_unknown_dates,
         fetch_details=args.fetch_details,
+        skip_detail_keys=skip_detail_keys,
         as_of=args.as_of,
         on_progress=_emit_progress(args.quiet),
     )
@@ -241,12 +325,34 @@ async def _run(args) -> int:
         from jpjobs.storage import JobStore
 
         with JobStore(args.database) as store:
-            stored = store.save_scan(result)
+            stored = store.save_scan(
+                result,
+                maintenance=args.maintain_database,
+                missing_threshold=args.missing_threshold,
+                retention_days=args.retention_days,
+                purge_grace_days=args.purge_grace_days,
+            )
         if not args.quiet:
             print(
-                f"[jpjobs] stored {stored} jobs in {args.database}",
+                f"[jpjobs] stored={stored.stored} new={stored.new_jobs} "
+                f"reactivated={stored.reactivated} "
+                f"missing={stored.marked_missing} "
+                f"withdrawn={stored.withdrawn} expired={stored.expired} "
+                f"purged={stored.purged} database={args.database}",
                 file=sys.stderr,
             )
+            if stored.reconciled_sources:
+                print(
+                    "[jpjobs] reconciled sources: "
+                    + ", ".join(stored.reconciled_sources),
+                    file=sys.stderr,
+                )
+            for source, reason in stored.skipped_sources.items():
+                print(
+                    f"[jpjobs] skipped withdrawal reconciliation for "
+                    f"{source}: {reason}",
+                    file=sys.stderr,
+                )
 
     out = format_result(result, args.format)
     if args.output:

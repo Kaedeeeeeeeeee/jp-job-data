@@ -89,6 +89,8 @@ and language signals.
 4. **Daily diff:** save yesterday's JSON, diff against today's
 5. **Incremental store:** add `--database=jobs.sqlite3` to preserve first- and
    last-seen timestamps
+6. **Daily lifecycle maintenance:** use an unfiltered `--pages=auto` scan with
+   `--database`, `--maintain-database`, and `--fetch-details-new-only`
 
 ## Pitfalls for AI agents
 
@@ -102,6 +104,10 @@ and language signals.
   claiming that a date window is fully covered
 - Strict date filtering excludes rows with unknown dates unless the user
   explicitly supplies `--include-unknown-dates`
+- Never run `--maintain-database` on keyword, prefecture, employment, or
+  language-filtered results. Absence reconciliation requires a complete source
+  inventory and automatically skips partial, blocked, capped, and suddenly
+  collapsed source runs.
 - **The user's resume is NOT in this package** — always obtain it from the user directly
 
 ## What jpjobs does NOT do

@@ -126,13 +126,35 @@ choices in the browser, and exports the completed review as JSON.
 jpjobs --keyword="IT Support" --employment-type=contract --format=table
 ```
 
-### "Keep an incremental local database"
+### "Keep a lifecycle-aware incremental database"
 
 ```bash
-jpjobs --days=30 --fetch-details --database=jobs.sqlite3 --output=jobs.json
+jpjobs --days=30 --pages=auto \
+       --fetch-details --fetch-details-new-only \
+       --database=jobs.sqlite3 --maintain-database \
+       --output=jobs.json
 ```
 
-Repeated runs preserve each job's first- and last-seen timestamps.
+Repeated runs preserve each job's first- and last-seen timestamps. Complete
+source scans increment missing counters for unseen listings; three consecutive
+misses mark a listing withdrawn. Incomplete or suddenly collapsed sources do
+not change absence state. The maintenance mode rejects keyword, prefecture,
+employment, and language filters because those filters cannot prove that an
+unseen listing was removed.
+
+### "Run database maintenance every day with Docker"
+
+```bash
+cp deploy/env.example .env
+# Set JPJOBS_DATA_DIR to an absolute, writable directory.
+docker compose build
+docker compose run --rm sync
+docker compose up -d scheduler
+```
+
+The scheduler runs at 03:15 Japan time, retries failed executions after two
+hours, stores its SQLite database under `JPJOBS_DATA_DIR`, and keeps 14
+compressed backups. No ports, accounts, or private API keys are required.
 
 ---
 

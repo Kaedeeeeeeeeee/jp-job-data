@@ -329,6 +329,7 @@ async def scan(
     dedup: bool = True,
     include_unknown_dates: bool = False,
     fetch_details: bool = False,
+    skip_detail_keys: set[tuple[str, str]] | None = None,
     as_of: date | str | None = None,
 ) -> ScanResult:
     """Run a scan with consistent normalization and post-fetch filtering."""
@@ -423,8 +424,15 @@ async def scan(
 
     detail_stats: dict[str, DetailStats] = {}
     if fetch_details:
-        raw_jobs, detail_stats = await enrich_jobs(
-            raw_jobs,
+        detail_jobs = raw_jobs
+        if skip_detail_keys:
+            detail_jobs = [
+                job
+                for job in raw_jobs
+                if (job.source, job.source_id) not in skip_detail_keys
+            ]
+        _, detail_stats = await enrich_jobs(
+            detail_jobs,
             pacing_ms=rate_limit_ms,
             on_progress=ctx.emit,
         )
@@ -497,6 +505,7 @@ async def scan(
             SourceStats(
                 name=outcome.name,
                 status=status,
+                discovery_status=outcome.status,
                 kept=final_source_counts[outcome.name],
                 total=len(outcome.jobs),
                 raw_total=len(outcome.jobs),
@@ -513,6 +522,8 @@ async def scan(
         scanned_at=scanned_at,
         total_kept=len(kept),
         jobs=kept,
+        window_start=opts["cutoff_date"],
+        window_end=as_of_date.isoformat(),
         raw_total=len(raw_jobs),
         filtered_out=sum(filter_reasons.values()),
         duplicates_merged=duplicates_merged,
