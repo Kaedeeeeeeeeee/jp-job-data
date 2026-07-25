@@ -325,3 +325,28 @@ def test_existing_v1_database_is_migrated_in_place(tmp_path):
 
     assert {"status", "missing_count", "withdrawn_at"} <= job_columns
     assert {"status", "missing_count", "withdrawn_at"} <= sighting_columns
+
+
+def test_stored_dates_hydrate_cards_and_failed_details_retry_weekly(tmp_path):
+    database = tmp_path / "jobs.sqlite3"
+    first = maintenance_result(
+        "2026-07-25T00:00:00Z",
+        [lifecycle_job("known", date_posted="2026-07-20")],
+    )
+    first.detail_attempts = [
+        {
+            "source": "green",
+            "source_id": "filtered-out",
+            "status": "fetch_error",
+        }
+    ]
+    with JobStore(database) as store:
+        store.save_scan(first)
+        dates = store.known_job_dates()
+        immediate_skip = store.detail_skip_keys(as_of="2026-07-25")
+        later_skip = store.detail_skip_keys(as_of="2026-08-02")
+
+    assert dates[("green", "known")] == "2026-07-20"
+    assert ("green", "known") in immediate_skip
+    assert ("green", "filtered-out") in immediate_skip
+    assert ("green", "filtered-out") not in later_skip

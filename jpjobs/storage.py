@@ -73,6 +73,14 @@ CREATE TABLE IF NOT EXISTS source_runs (
     FOREIGN KEY (scanned_at) REFERENCES runs(scanned_at)
 );
 
+CREATE TABLE IF NOT EXISTS detail_attempts (
+    source TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    last_attempted_at TEXT NOT NULL,
+    status TEXT NOT NULL,
+    PRIMARY KEY (source, source_id)
+);
+
 CREATE INDEX IF NOT EXISTS jobs_company_title
 ON jobs(company, title);
 
@@ -81,6 +89,9 @@ ON sightings(source, source_id);
 
 CREATE INDEX IF NOT EXISTS source_runs_source_scanned
 ON source_runs(source, scanned_at);
+
+CREATE INDEX IF NOT EXISTS detail_attempts_last_attempted
+ON detail_attempts(last_attempted_at);
 """
 
 LIFECYCLE_INDEXES = """
@@ -221,6 +232,47 @@ class JobStore:
                 """
             )
         }
+
+    def known_job_dates(self) -> dict[tuple[str, str], str]:
+        """Return stored dates to hydrate discovery cards that omit them."""
+        return {
+            (str(source), str(source_id)): str(date_posted)
+            for source, source_id, date_posted in self.connection.execute(
+                """
+                SELECT s.source, s.source_id, j.date_posted
+                FROM sightings AS s
+                JOIN jobs AS j ON j.id = s.job_id
+                WHERE s.status IN ('active', 'missing')
+                  AND j.date_posted IS NOT NULL
+                  AND j.date_posted != ''
+                """
+            )
+        }
+
+    def detail_skip_keys(
+        self,
+        *,
+        retry_after_days: int = 7,
+        as_of: str | None = None,
+    ) -> set[tuple[str, str]]:
+        """Skip live jobs and recently attempted filtered-out detail pages."""
+        if retry_after_days < 1:
+            raise ValueError("retry_after_days must be at least 1")
+        reference = date.fromisoformat(as_of) if as_of else date.today()
+        cutoff = (reference - timedelta(days=retry_after_days)).isoformat()
+        keys = self.known_sighting_keys()
+        keys.update(
+            (str(source), str(source_id))
+            for source, source_id in self.connection.execute(
+                """
+                SELECT source, source_id
+                FROM detail_attempts
+                WHERE date(last_attempted_at) >= date(?)
+                """,
+                (cutoff,),
+            )
+        )
+        return keys
 
     def save_scan(
         self,
@@ -410,6 +462,24 @@ class JobStore:
                             result.scanned_at,
                         ),
                     )
+
+            for attempt in result.detail_attempts:
+                source = str(attempt.get("source") or "")
+                source_id = str(attempt.get("source_id") or "")
+                status = str(attempt.get("status") or "")
+                if not source or not source_id or not status:
+                    continue
+                self.connection.execute(
+                    """
+                    INSERT INTO detail_attempts (
+                        source, source_id, last_attempted_at, status
+                    ) VALUES (?, ?, ?, ?)
+                    ON CONFLICT(source, source_id) DO UPDATE SET
+                        last_attempted_at = excluded.last_attempted_at,
+                        status = excluded.status
+                    """,
+                    (source, source_id, result.scanned_at, status),
+                )
 
             if maintenance:
                 for source_stats in result.per_source:
