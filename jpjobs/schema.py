@@ -110,6 +110,7 @@ class ScanResult:
     filter_reasons: dict[str, int] = field(default_factory=dict)
     per_source: List[SourceStats] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    detail_attempts: List[dict] = field(default_factory=list)
 
 
 def make_job_id(source: str, source_id: str) -> str:

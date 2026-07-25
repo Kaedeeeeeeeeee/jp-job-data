@@ -330,6 +330,7 @@ async def scan(
     include_unknown_dates: bool = False,
     fetch_details: bool = False,
     skip_detail_keys: set[tuple[str, str]] | None = None,
+    known_job_dates: dict[tuple[str, str], str] | None = None,
     as_of: date | str | None = None,
 ) -> ScanResult:
     """Run a scan with consistent normalization and post-fetch filtering."""
@@ -421,8 +422,11 @@ async def scan(
     raw_jobs = [job for outcome in outcomes for job in outcome.jobs]
     for job in raw_jobs:
         normalize_job(job)
+        if not job.date_posted and known_job_dates:
+            job.date_posted = known_job_dates.get((job.source, job.source_id))
 
     detail_stats: dict[str, DetailStats] = {}
+    detail_attempts: list[dict[str, str]] = []
     if fetch_details:
         detail_jobs = raw_jobs
         if skip_detail_keys:
@@ -431,11 +435,28 @@ async def scan(
                 for job in raw_jobs
                 if (job.source, job.source_id) not in skip_detail_keys
             ]
+        if days is not None:
+            detail_cutoff = as_of_date - timedelta(days=days)
+            detail_jobs = [
+                job
+                for job in detail_jobs
+                if (posted := parse_date(job.date_posted)) is None
+                or detail_cutoff <= posted <= as_of_date
+            ]
         _, detail_stats = await enrich_jobs(
             detail_jobs,
             pacing_ms=rate_limit_ms,
             on_progress=ctx.emit,
         )
+        detail_attempts = [
+            {
+                "source": job.source,
+                "source_id": job.source_id,
+                "status": job.detail_status,
+            }
+            for job in detail_jobs
+            if job.detail_status
+        ]
 
     requested_language = language or ("english" if english_filter else None)
     kept: list[Job] = []
@@ -530,4 +551,5 @@ async def scan(
         filter_reasons=dict(filter_reasons),
         per_source=per_source,
         warnings=list(dict.fromkeys(warnings)),
+        detail_attempts=detail_attempts,
     )

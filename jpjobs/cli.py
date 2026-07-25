@@ -291,11 +291,14 @@ async def _run(args) -> int:
         return 2
 
     skip_detail_keys = None
-    if args.fetch_details_new_only:
+    known_job_dates = None
+    if args.database:
         from jpjobs.storage import JobStore
 
         with JobStore(args.database) as store:
-            skip_detail_keys = store.known_sighting_keys()
+            known_job_dates = store.known_job_dates()
+            if args.fetch_details_new_only:
+                skip_detail_keys = store.detail_skip_keys(as_of=args.as_of)
 
     result = await scan(
         sources=sources,
@@ -317,6 +320,7 @@ async def _run(args) -> int:
         include_unknown_dates=args.include_unknown_dates,
         fetch_details=args.fetch_details,
         skip_detail_keys=skip_detail_keys,
+        known_job_dates=known_job_dates,
         as_of=args.as_of,
         on_progress=_emit_progress(args.quiet),
     )

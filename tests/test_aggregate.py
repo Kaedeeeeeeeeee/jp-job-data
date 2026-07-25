@@ -72,14 +72,20 @@ def test_incremental_detail_fetch_skips_known_source_ids(monkeypatch):
                 reason="source_end",
                 coverage_complete=True,
             )
-            return [
+            jobs = [
                 make_job("fake", "known"),
                 make_job("fake", "new"),
+                make_job("fake", "old"),
             ]
+            jobs[-1].date_posted = "2025-01-01"
+            return jobs
 
     attempted = []
 
     async def fake_enrich(jobs, **_):
+        for job in jobs:
+            job.date_posted = "2026-07-20"
+            job.detail_status = "enriched"
         attempted.extend(job.source_id for job in jobs)
         return jobs, {"fake": DetailStats(attempted=len(jobs))}
 
@@ -88,11 +94,16 @@ def test_incremental_detail_fetch_skips_known_source_ids(monkeypatch):
     result = asyncio.run(
         aggregate.scan(
             sources=["fake"],
-            days=None,
+            days=30,
+            as_of="2026-07-25",
             fetch_details=True,
             skip_detail_keys={("fake", "known")},
+            known_job_dates={("fake", "known"): "2026-07-20"},
         )
     )
 
     assert attempted == ["new"]
     assert result.total_kept == 2
+    assert result.detail_attempts == [
+        {"source": "fake", "source_id": "new", "status": "enriched"}
+    ]
