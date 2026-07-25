@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jpjobs"
-version = "0.2.0"
-description = "Unified scraper for Japan's major job boards, with AI-assistant integration"
+version = "0.4.0"
+description = "Quality-focused multi-source scraper for Japan job boards"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -25,11 +25,22 @@ dependencies = [
     "playwright>=1.40",
 ]
 
+[project.urls]
+Repository = "https://github.com/Kaedeeeeeeeeee/jp-job-data"
+Documentation = "https://github.com/Kaedeeeeeeeeee/jp-job-data/tree/main/docs"
+
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.8,<0.16"]
 
 [project.scripts]
 jpjobs = "jpjobs.cli:main"
 
 [tool.hatch.build]
 include = ["jpjobs/**/*.py", "README.md", "USAGE.md", "AGENTS.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88

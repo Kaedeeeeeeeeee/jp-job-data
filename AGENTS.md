@@ -4,7 +4,12 @@ If you're an AI assistant reading this, `jpjobs` lets you discover Japan job-boa
 
 ## What jpjobs is
 
-A unified Python CLI that scrapes major Japan job boards (HelloWork, LinkedIn, TokyoDev, JapanDev, GaijinPot, JobsInJapan, Daijob, Green, Forkwell, Wantedly + 7 experimental) and normalizes the output into a single job schema. No accounts, no API keys.
+A unified Python CLI that scrapes nine default Japan job boards (HelloWork,
+TokyoDev, JapanDev, GaijinPot, JobsInJapan, Daijob, Green, Forkwell, Wantedly)
+plus opt-in sources and normalizes the output into a single job schema.
+LinkedIn is intentionally opt-in because its public guest listings often lack
+actionable descriptions and compensation. The default `all` selection runs
+active sources only. No accounts or private API keys are required.
 
 ## What to ask the user before scanning
 
@@ -21,27 +26,26 @@ Don't assume — ask:
 Run via Bash, parse JSON. Recommended chain:
 
 ```bash
-jpjobs --sources=linkedin,hellowork \
+jpjobs --sources=hellowork,tokyodev \
        --keyword="IT Support" \
        --prefecture=tokyo \
        --english-filter \
+       --pages=auto --max-pages=50 \
+       --fetch-details \
        --format=json --output=/tmp/jobs.json
 
 # then:
 cat /tmp/jobs.json | jq '.jobs[] | select(.wage.min >= 300000)'
 ```
 
-After fetching, ask the user for their resume to score each job. Use the prompts in `prompts/`.
+After fetching, ask the user for their resume only if they want matching or
+ranking.
 
 ## For ChatGPT / web-chat users
 
-The user runs the CLI on their machine with `--format=llm` and pastes the output into the chat. You then apply one of the prompts in `prompts/`:
-
-- `prompts/rank-against-resume.md`
-- `prompts/filter-english-friendly.md`
-- `prompts/extract-companies-for-research.md`
-- `prompts/write-tailored-cover-letter.md`
-- `prompts/summarize-market-trends.md`
+The user runs the CLI on their machine with `--format=llm` and pastes the output
+into the chat. The export balances sources and includes available descriptions
+and language signals.
 
 ## Unified job schema (every source returns this shape)
 
@@ -83,6 +87,8 @@ The user runs the CLI on their machine with `--format=llm` and pastes the output
 2. **Score against a resume:** scan → paste output + resume → use `prompts/rank-against-resume.md`
 3. **Research companies:** scan → use `prompts/extract-companies-for-research.md`
 4. **Daily diff:** save yesterday's JSON, diff against today's
+5. **Incremental store:** add `--database=jobs.sqlite3` to preserve first- and
+   last-seen timestamps
 
 ## Pitfalls for AI agents
 
@@ -90,6 +96,12 @@ The user runs the CLI on their machine with `--format=llm` and pastes the output
 - **Don't fabricate URLs** — only cite `url` as given
 - **HelloWork URLs are session-bound** — if a URL fails, tell the user to search by `source_id` on hellowork.mhlw.go.jp
 - **A source returning empty doesn't mean "no jobs available"** — it can mean rate-limited or anti-bot
+- Check `per_source[].status`; it distinguishes no results, partial results,
+  blocks, parse failures, and other failures
+- Check `per_source[].coverage_complete` and `pagination_stop_reasons` before
+  claiming that a date window is fully covered
+- Strict date filtering excludes rows with unknown dates unless the user
+  explicitly supplies `--include-unknown-dates`
 - **The user's resume is NOT in this package** — always obtain it from the user directly
 
 ## What jpjobs does NOT do

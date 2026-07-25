@@ -12,6 +12,36 @@ from jpjobs.location import slug_to_code
 from jpjobs.output import format_result, FORMATTERS
 
 
+def _page_mode(value: str) -> int | None:
+    if value.casefold() == "auto":
+        return None
+    try:
+        pages = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("use a positive integer or 'auto'") from exc
+    if pages < 1:
+        raise argparse.ArgumentTypeError("page count must be at least 1")
+    return pages
+
+
+def _positive_int(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a positive integer") from exc
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return number
+
+
+def _source_page(value: str) -> tuple[str, int]:
+    source, separator, raw_page = value.partition("=")
+    source = source.strip()
+    if not separator or not source:
+        raise argparse.ArgumentTypeError("use SOURCE=PAGE, for example daijob=250")
+    return source, _positive_int(raw_page)
+
+
 def _make_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="jpjobs",
@@ -20,7 +50,10 @@ def _make_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--sources",
         default="all",
-        help="Comma-separated source slugs or 'all'. See --list-sources.",
+        help=(
+            "Comma-separated source slugs, 'all' for active sources, or "
+            "'all-including-experimental'. See --list-sources."
+        ),
     )
     p.add_argument(
         "--keyword",
@@ -30,8 +63,61 @@ def _make_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--prefecture", help="Prefecture slug (e.g., 'tokyo', 'osaka').")
     p.add_argument("--location", default="Japan", help="Free-text location (LinkedIn).")
-    p.add_argument("--pages", type=int, default=2)
+    p.add_argument(
+        "--pages",
+        type=_page_mode,
+        default=2,
+        metavar="N|auto",
+        help=(
+            "Maximum pages per source, or 'auto' to continue through the date "
+            "window (default: 2)."
+        ),
+    )
+    p.add_argument(
+        "--max-pages",
+        type=_positive_int,
+        default=50,
+        help="Safety cap per source/query when --pages=auto (default: 50).",
+    )
+    p.add_argument(
+        "--source-max-pages",
+        action="append",
+        type=_source_page,
+        default=[],
+        metavar="SOURCE=N",
+        help=(
+            "Override the automatic safety cap for one source; can repeat "
+            "(for example hellowork=250)."
+        ),
+    )
+    p.add_argument(
+        "--start-page",
+        action="append",
+        type=_source_page,
+        default=[],
+        metavar="SOURCE=N",
+        help=(
+            "Start or resume one source at this one-based page; can repeat. "
+            "Browser sources may replay earlier pages to restore their session."
+        ),
+    )
+    p.add_argument(
+        "--checkpoint",
+        help=(
+            "Persist automatic-pagination progress to JSON and resume it on "
+            "the next run with matching filters."
+        ),
+    )
     p.add_argument("--days", type=int, default=7, help="Posted within last N days.")
+    p.add_argument(
+        "--as-of",
+        help="End date for the posted-date window (YYYY-MM-DD; default: today).",
+    )
+    p.add_argument(
+        "--include-unknown-dates",
+        action="store_true",
+        help="Retain jobs with no posted date when --days is active.",
+    )
     p.add_argument(
         "--employment-type",
         action="append",
@@ -49,12 +135,21 @@ def _make_parser() -> argparse.ArgumentParser:
     p.add_argument("--format", default="json", choices=list(FORMATTERS))
     p.add_argument("--output", help="Write to file instead of stdout.")
     p.add_argument(
+        "--database",
+        help="Upsert the filtered result into a SQLite database.",
+    )
+    p.add_argument(
         "--no-headless",
         action="store_true",
         help="Run browser in visible mode (debugging).",
     )
     p.add_argument(
         "--rate-limit", type=int, default=700, help="Inter-request pacing in ms."
+    )
+    p.add_argument(
+        "--fetch-details",
+        action="store_true",
+        help="Fetch detail pages and parse schema.org JobPosting fields.",
     )
     p.add_argument(
         "--list-sources", action="store_true", help="List available sources and exit."
@@ -91,6 +186,26 @@ async def _run(args) -> int:
         if args.sources == "all"
         else [s.strip() for s in args.sources.split(",")]
     )
+    if (
+        args.source_max_pages or args.start_page or args.checkpoint
+    ) and args.pages is not None:
+        print(
+            "[jpjobs] --source-max-pages, --start-page, and --checkpoint "
+            "require --pages=auto.",
+            file=sys.stderr,
+        )
+        return 2
+    source_max_pages = dict(args.source_max_pages)
+    start_pages = dict(args.start_page)
+    for source, start_page in start_pages.items():
+        limit = source_max_pages.get(source, args.max_pages)
+        if start_page > limit:
+            print(
+                f"[jpjobs] start page {start_page} exceeds the {source} "
+                f"maximum page {limit}.",
+                file=sys.stderr,
+            )
+            return 2
     pref_code = slug_to_code(args.prefecture) if args.prefecture else None
     if args.prefecture and not pref_code:
         print(
@@ -106,14 +221,32 @@ async def _run(args) -> int:
         prefecture=args.prefecture,
         prefecture_code=pref_code,
         pages=args.pages,
+        max_pages=args.max_pages,
+        source_max_pages=source_max_pages,
+        start_pages=start_pages,
+        checkpoint_path=args.checkpoint,
         days=args.days,
         employment_types=args.employment_types,
         language=args.language,
         english_filter=args.english_filter or (args.language == "english"),
         headless=not args.no_headless,
         rate_limit_ms=args.rate_limit,
+        include_unknown_dates=args.include_unknown_dates,
+        fetch_details=args.fetch_details,
+        as_of=args.as_of,
         on_progress=_emit_progress(args.quiet),
     )
+
+    if args.database:
+        from jpjobs.storage import JobStore
+
+        with JobStore(args.database) as store:
+            stored = store.save_scan(result)
+        if not args.quiet:
+            print(
+                f"[jpjobs] stored {stored} jobs in {args.database}",
+                file=sys.stderr,
+            )
 
     out = format_result(result, args.format)
     if args.output:

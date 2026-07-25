@@ -19,7 +19,9 @@ Open a terminal:
 Paste this and hit Enter:
 
 ```bash
-pip install jpjobs
+git clone https://github.com/Kaedeeeeeeeeee/jp-job-data.git
+cd jp-job-data
+python -m pip install -e .
 ```
 
 ### 3. Install Chromium (only if you want HelloWork or Indeed)
@@ -28,7 +30,7 @@ pip install jpjobs
 playwright install chromium
 ```
 
-The other 8 sources work without this.
+The other 8 default sources work without this.
 
 ---
 
@@ -57,7 +59,7 @@ jpjobs --keyword="IT Support" --prefecture=tokyo --output=jobs.json
 ### "Find English-friendly Tokyo IT roles"
 
 ```bash
-jpjobs --sources=linkedin,tokyodev,japandev,gaijinpot,jobsinjapan \
+jpjobs --sources=tokyodev,japandev,gaijinpot,jobsinjapan \
        --keyword="IT Support" \
        --prefecture=tokyo \
        --english-filter \
@@ -75,10 +77,48 @@ The `英語` (English) keyword surfaces foreign-affiliated employers within Hell
 ### "Cast the widest possible net"
 
 ```bash
-jpjobs --keyword="IT Support" --pages=3 --output=all-jobs.json
+jpjobs --days=30 --pages=auto --max-pages=50 \
+       --fetch-details --output=all-jobs.json
 ```
 
-Runs every active source in parallel. Takes ~30-60 seconds.
+Runs every active source, enriches detail fields, and retains only jobs whose
+posted dates can be verified inside the requested window. Automatic pagination
+continues until the source ends, its newest-first results move beyond the
+30-day boundary, or the safety cap is reached. Detail enrichment can take
+several minutes.
+
+The JSON `per_source` section records `pages_fetched`,
+`pagination_stop_reasons`, and `coverage_complete`. A safety-cap warning means
+the output is valid but that source may still have more in-window jobs.
+
+Large sources can use independent caps and a durable resume checkpoint:
+
+```bash
+jpjobs --sources=hellowork,daijob \
+       --days=30 --as-of=2026-07-25 --pages=auto \
+       --source-max-pages=hellowork=425 \
+       --source-max-pages=daijob=400 \
+       --checkpoint=data/30-day-pages.json \
+       --database=data/jobs.sqlite3 \
+       --output=continued-jobs.json
+```
+
+If the process is interrupted, run the same command again. HTTP sources jump
+directly to the next saved page. HelloWork must rebuild its session-bound
+search and quickly replay earlier page transitions before collecting new
+pages. To seed a checkpoint after an older run, add a repeatable
+`--start-page=SOURCE=N` option, such as `--start-page=daijob=51`.
+
+### "Open a simple browser page for manual data review"
+
+```bash
+python experiments/build_audit_report.py all-jobs.json \
+       --per-source=20 \
+       --output=audit/index.html
+```
+
+Open `audit/index.html`. The page samples each source evenly, saves review
+choices in the browser, and exports the completed review as JSON.
 
 ### "Part-time or contract roles"
 
@@ -86,20 +126,13 @@ Runs every active source in parallel. Takes ~30-60 seconds.
 jpjobs --keyword="IT Support" --employment-type=contract --format=table
 ```
 
-### "Save your defaults"
+### "Keep an incremental local database"
 
-Create `jpjobs.config.json` in the folder you run scans from:
-
-```json
-{
-  "sources": ["linkedin", "tokyodev", "hellowork"],
-  "prefecture": "tokyo",
-  "keywords": ["IT Support", "Helpdesk"],
-  "pages": 2
-}
+```bash
+jpjobs --days=30 --fetch-details --database=jobs.sqlite3 --output=jobs.json
 ```
 
-(The file isn't read automatically yet in v0.2 — copy-paste your favorite flags from here.)
+Repeated runs preserve each job's first- and last-seen timestamps.
 
 ---
 
@@ -108,38 +141,22 @@ Create `jpjobs.config.json` in the folder you run scans from:
 ### Step 1 — scan with the LLM-friendly format
 
 ```bash
-jpjobs --sources=linkedin,tokyodev,gaijinpot \
+jpjobs --sources=tokyodev,japandev,gaijinpot \
        --keyword="IT Support" \
        --format=llm > jobs.txt
 ```
 
-This produces a compact text block, ~40 tokens per job, capped at 50 jobs.
+This produces a source-balanced text block with descriptions and language
+signals, capped at 50 jobs.
 
-### Step 2 — open one of the included prompts
-
-```bash
-cat prompts/rank-against-resume.md
-```
-
-### Step 3 — paste into Claude / ChatGPT / Codex
+### Step 2 — paste into Claude / ChatGPT / Codex
 
 - Open your AI assistant of choice
-- Paste the prompt template from `prompts/rank-against-resume.md`
 - Replace `<paste resume here>` with your actual resume
 - Replace `<paste jobs here>` with the contents of `jobs.txt`
 - Send
 
 The assistant will rank each job 0–10 against your resume and explain why.
-
-### Other prompts in `prompts/`
-
-| Prompt | What it does |
-|---|---|
-| `rank-against-resume.md` | Score every job against your resume |
-| `filter-english-friendly.md` | Score 0–10 on English-friendliness |
-| `extract-companies-for-research.md` | Dedup company list with research questions |
-| `summarize-market-trends.md` | Aggregate analysis (volume, comp, skills) |
-| `write-tailored-cover-letter.md` | Draft a cover letter for one job |
 
 ---
 
@@ -162,7 +179,6 @@ pip show -f jpjobs | grep bin
 ### One source returns 0
 
 Most often one of:
-- **TokyoDev** filter ignores ≤2-char keywords — use longer search terms
 - **HelloWork** needs Japanese keywords — try `--keyword=英語` instead of "English"
 - **Indeed / Wellfound / Doda** are marked `experimental` because of anti-bot — expect intermittent empties
 
@@ -199,6 +215,5 @@ jpjobs --sources=tokyodev --keyword="IT Support" --prefecture=tokyo --format=llm
 
 - README → high-level overview
 - AGENTS.md → for AI assistants reading the repo
-- CONTRIBUTING.md → adding a new source
-- `prompts/` → ready-to-use AI prompt templates
+- `docs/baseline-vs-optimized.md` → reproducible quality comparison
 - Open an issue on GitHub for everything else

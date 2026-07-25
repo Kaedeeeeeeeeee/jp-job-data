@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from collections import deque
 from dataclasses import asdict
 
 from jpjobs.schema import ScanResult
@@ -21,8 +22,11 @@ def format_csv(result: ScanResult) -> str:
         "source",
         "source_id",
         "url",
+        "found_on",
+        "source_urls",
         "title",
         "company",
+        "description_snippet",
         "workplace",
         "prefecture",
         "prefecture_name",
@@ -33,6 +37,9 @@ def format_csv(result: ScanResult) -> str:
         "wage_raw",
         "employment_type",
         "date_posted",
+        "language",
+        "detail_status",
+        "quality_flags",
         "matched_keyword",
         "scraped_at",
     ]
@@ -45,8 +52,11 @@ def format_csv(result: ScanResult) -> str:
                 "source": j.source,
                 "source_id": j.source_id,
                 "url": j.url,
+                "found_on": json.dumps(j.found_on, ensure_ascii=False),
+                "source_urls": json.dumps(j.source_urls, ensure_ascii=False),
                 "title": j.title,
                 "company": j.company,
+                "description_snippet": j.description_snippet,
                 "workplace": j.workplace,
                 "prefecture": j.prefecture,
                 "prefecture_name": j.prefecture_name,
@@ -57,6 +67,9 @@ def format_csv(result: ScanResult) -> str:
                 "wage_raw": j.wage.raw,
                 "employment_type": j.employment_type,
                 "date_posted": j.date_posted,
+                "language": json.dumps(j.language, ensure_ascii=False),
+                "detail_status": j.detail_status,
+                "quality_flags": json.dumps(j.quality_flags, ensure_ascii=False),
                 "matched_keyword": j.matched_keyword,
                 "scraped_at": j.scraped_at,
             }
@@ -67,16 +80,26 @@ def format_csv(result: ScanResult) -> str:
 def format_markdown(result: ScanResult) -> str:
     lines = [
         f"# Scan results — {result.scanned_at}",
-        f"**Total:** {result.total_kept} jobs across {len(result.per_source)} sources",
+        (
+            f"**Total:** {result.total_kept} jobs across {len(result.per_source)} "
+            f"sources · raw {result.raw_total} · filtered {result.filtered_out} · "
+            f"duplicates merged {result.duplicates_merged}"
+        ),
         "",
         "| # | Source | Title | Company | Location | Wage | URL |",
         "|---|--------|-------|---------|----------|------|-----|",
     ]
+
+    def cell(value: str) -> str:
+        return value.replace("|", "\\|").replace("\n", " ")
+
     for i, j in enumerate(result.jobs, 1):
         wage = j.wage.raw or "—"
         lines.append(
-            f"| {i} | {j.source} | {j.title[:50]} | {j.company[:30]} | "
-            f"{(j.prefecture_name or j.workplace)[:30]} | {wage} | {j.url} |"
+            f"| {i} | {cell(', '.join(j.found_on) or j.source)} | "
+            f"{cell(j.title[:50])} | {cell(j.company[:30])} | "
+            f"{cell((j.prefecture_name or j.workplace)[:30])} | "
+            f"{cell(wage)} | {j.url} |"
         )
     return "\n".join(lines)
 
@@ -94,9 +117,25 @@ def format_table(result: ScanResult) -> str:
     return "\n".join(out)
 
 
+def _balanced_sample(result: ScanResult, max_jobs: int) -> list:
+    """Round-robin sources so one large board cannot consume the full export."""
+    buckets: dict[str, deque] = {}
+    for job in result.jobs:
+        buckets.setdefault(job.source, deque()).append(job)
+    selected = []
+    while buckets and len(selected) < max_jobs:
+        for source in list(buckets):
+            bucket = buckets[source]
+            if bucket and len(selected) < max_jobs:
+                selected.append(bucket.popleft())
+            if not bucket:
+                del buckets[source]
+    return selected
+
+
 def format_llm(result: ScanResult, max_jobs: int = 50) -> str:
-    """Compact text block, 3-4 lines per job, AI-pasteable. Cap for context budget."""
-    jobs = result.jobs[:max_jobs]
+    """Compact, source-balanced text block for downstream ranking."""
+    jobs = _balanced_sample(result, max_jobs)
     out = [
         f"# Japan job listings — {len(jobs)} of {result.total_kept} jobs",
         f"# Scanned at: {result.scanned_at}",
@@ -110,8 +149,13 @@ def format_llm(result: ScanResult, max_jobs: int = 50) -> str:
         )
         wage_str = j.wage.raw or "wage TBD"
         out.append(
-            f"    Wage: {wage_str}  ·  Posted: {j.date_posted or '?'}  ·  Source: {j.source}"
+            f"    Wage: {wage_str}  ·  Posted: {j.date_posted or '?'}  ·  "
+            f"Sources: {', '.join(j.found_on) or j.source}"
         )
+        if j.language:
+            out.append(f"    Language signals: {', '.join(j.language)}")
+        if j.description_snippet:
+            out.append(f"    Summary: {j.description_snippet[:400]}")
         out.append(f"    URL: {j.url}")
         out.append("")
     if result.total_kept > max_jobs:

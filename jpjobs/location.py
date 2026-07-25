@@ -1,5 +1,7 @@
 """Prefecture code map. ISO-3166-2 JP codes."""
 
+import unicodedata
+
 PREFECTURES = {
     "01": ("hokkaido", "Hokkaido", "北海道"),
     "02": ("aomori", "Aomori", "青森県"),
@@ -74,7 +76,21 @@ def normalize(text: str) -> tuple[str | None, str | None]:
     """Given any workplace string, return (slug, code) if a prefecture is detected."""
     if not text:
         return None, None
+    folded = "".join(
+        char
+        for char in unicodedata.normalize("NFKD", text).casefold()
+        if not unicodedata.combining(char)
+    )
     for code, (slug, en, jp) in PREFECTURES.items():
-        if jp in text or en.lower() in text.lower():
+        english = en.casefold()
+        japanese_short = jp
+        if jp != "北海道":
+            japanese_short = jp.removesuffix("都").removesuffix("府").removesuffix("県")
+        if (
+            jp in text
+            or japanese_short in text
+            or english in folded
+            or slug.replace("-", " ") in folded
+        ):
             return slug, code
     return None, None

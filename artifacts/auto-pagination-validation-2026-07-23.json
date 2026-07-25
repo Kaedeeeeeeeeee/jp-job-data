@@ -1,0 +1,92 @@
+{
+  "as_of": "2026-07-23",
+  "window_days": 30,
+  "purpose": "Controlled live validation of pagination and stop reasons; detail enrichment was disabled.",
+  "sources": [
+    {
+      "source": "hellowork",
+      "max_pages": 3,
+      "pages_fetched": 3,
+      "raw_jobs": 90,
+      "stop_reason": "safety_cap",
+      "coverage_complete": false
+    },
+    {
+      "source": "linkedin",
+      "max_pages": 3,
+      "pages_fetched": 3,
+      "raw_jobs": 30,
+      "stop_reason": "safety_cap",
+      "coverage_complete": false
+    },
+    {
+      "source": "tokyodev",
+      "max_pages": 3,
+      "pages_fetched": 1,
+      "raw_jobs": 156,
+      "stop_reason": "single_page_source",
+      "coverage_complete": true
+    },
+    {
+      "source": "japandev",
+      "max_pages": 3,
+      "pages_fetched": 3,
+      "raw_jobs": 90,
+      "stop_reason": "safety_cap",
+      "coverage_complete": false
+    },
+    {
+      "source": "daijob",
+      "max_pages": 3,
+      "pages_fetched": 3,
+      "raw_jobs": 60,
+      "stop_reason": "safety_cap",
+      "coverage_complete": false
+    },
+    {
+      "source": "gaijinpot",
+      "max_pages": 3,
+      "pages_fetched": 3,
+      "raw_jobs": 185,
+      "stop_reason": "source_end",
+      "coverage_complete": true
+    },
+    {
+      "source": "jobsinjapan",
+      "max_pages": 10,
+      "pages_fetched": 4,
+      "raw_jobs": 113,
+      "stop_reason": "source_end",
+      "coverage_complete": true
+    },
+    {
+      "source": "green",
+      "max_pages": 50,
+      "pages_fetched": 4,
+      "raw_jobs": 60,
+      "stop_reason": "source_end",
+      "coverage_complete": true
+    },
+    {
+      "source": "forkwell",
+      "max_pages": 10,
+      "pages_fetched": 8,
+      "raw_jobs": 115,
+      "stop_reason": "date_boundary",
+      "coverage_complete": true
+    },
+    {
+      "source": "wantedly",
+      "max_pages": 50,
+      "pages_fetched": 26,
+      "raw_jobs": 241,
+      "stop_reason": "repeated_page",
+      "coverage_complete": false
+    }
+  ],
+  "notes": [
+    "A safety cap intentionally proves the incomplete-coverage warning path.",
+    "Wantedly's public offset route repeated a page after 241 unique recent-ordered rows, so the scanner stopped without claiming full coverage.",
+    "Sources whose exact date exists only on detail pages require --fetch-details for a complete strict-date output."
+  ]
+}
