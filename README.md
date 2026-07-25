@@ -1,4 +1,4 @@
-# jp-job-data / jpjobs 0.4
+# jp-job-data / jpjobs 0.5
 
 > Unified scraper for Japan's major job boards, with AI-assistant integration.
 
@@ -21,6 +21,8 @@ The optimized pipeline adds:
 - cross-source deduplication with retained source URLs and native IDs;
 - explicit source health states and filter reasons;
 - optional SQLite persistence for incremental runs;
+- conservative withdrawal detection, expiry, and tombstone cleanup;
+- an isolated Docker scheduler with compressed database backups;
 - source-balanced LLM output with job summaries.
 
 ## Why this exists
@@ -34,7 +36,7 @@ The optimized pipeline adds:
 
 ## Sources
 
-**9 active** sources returning real jobs as of v0.4:
+**9 active** sources returning real jobs as of v0.5:
 
 | Slug          | Type                     | Browser? | Description |
 |---------------|--------------------------|----------|-------------|
@@ -106,6 +108,11 @@ See [USAGE.md](./USAGE.md) for a step-by-step walkthrough including troubleshoot
 | `--include-unknown-dates` | Keep rows whose posted date cannot be verified            |
 | `--fetch-details`     | Parse schema.org data from detail pages                       |
 | `--database`          | Upsert the result into a SQLite database                      |
+| `--maintain-database` | Reconcile missing, withdrawn, expired, and purged jobs         |
+| `--missing-threshold` | Complete misses before withdrawal (default 3)                  |
+| `--retention-days`    | Expire postings older than this age (default 90)               |
+| `--purge-grace-days`  | Retain tombstones before physical deletion (default 30)        |
+| `--fetch-details-new-only` | Avoid re-fetching details for existing live listings     |
 | `--employment-type`   | `fulltime` / `parttime` / `contract` / `dispatch` / `freelance` / `intern` |
 | `--language`          | `english` / `japanese` / `bilingual`                          |
 | `--english-filter`    | Post-filter results for English-signal jobs                   |
@@ -163,7 +170,34 @@ Every source returns the same shape. Useful when piping to `jq` or AI assistants
 | `quality_flags`        | array          | Explicit missing-field signals |
 | `first_seen_at` / `last_seen_at` | string \| null | Populated by SQLite persistence |
 
-No accounts, no API keys, no `.env`. Your resume and chat history go to whichever AI provider you paste them into — `jpjobs` never sees them.
+No accounts or API keys are required. The optional Compose `.env` contains only
+local paths, numeric user IDs, and schedule settings. Your resume and chat
+history go to whichever AI provider you paste them into — `jpjobs` never sees
+them.
+
+## Daily Docker maintenance
+
+The included Compose deployment runs one small scheduler container continuously
+and starts the scraper inside it at 03:15 Japan time. It opens no inbound ports,
+uses at most two CPUs and 3 GiB of memory, and persists all state outside the
+container.
+
+```bash
+cp deploy/env.example .env
+# Edit JPJOBS_DATA_DIR in .env.
+mkdir -p /path/from/JPJOBS_DATA_DIR
+
+docker compose build
+docker compose run --rm sync       # initial/manual run
+docker compose up -d scheduler     # daily scheduling
+docker compose logs -f scheduler
+```
+
+The daily job scans an overlapping 30-day window. A missing listing is marked
+withdrawn only after three complete source scans. Partial, blocked, capped, or
+suddenly collapsed source results never trigger withdrawal reconciliation.
+Postings older than 90 days expire, tombstones are purged after 30 more days,
+and the latest 14 compressed SQLite backups are retained.
 
 ## Adding a source
 

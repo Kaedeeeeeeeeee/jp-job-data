@@ -85,6 +85,7 @@ class Job:
 class SourceStats:
     name: str
     status: SourceStatus = "success"
+    discovery_status: Optional[SourceStatus] = None
     kept: int = 0
     total: int = 0
     raw_total: int = 0
@@ -101,6 +102,8 @@ class ScanResult:
     scanned_at: str
     total_kept: int
     jobs: List[Job]
+    window_start: Optional[str] = None
+    window_end: Optional[str] = None
     raw_total: int = 0
     filtered_out: int = 0
     duplicates_merged: int = 0

@@ -1,0 +1,50 @@
+name: jpjobs-sync
+
+x-jpjobs-common: &jpjobs-common
+  image: jpjobs-sync:0.5.0
+  build:
+    context: .
+    dockerfile: Dockerfile
+  user: "${JPJOBS_UID:-1000}:${JPJOBS_GID:-1000}"
+  environment:
+    HOME: /tmp/jpjobs-home
+    JPJOBS_DATA_DIR: /data
+    JPJOBS_SCHEDULE_HOUR: "${JPJOBS_SCHEDULE_HOUR:-3}"
+    JPJOBS_SCHEDULE_MINUTE: "${JPJOBS_SCHEDULE_MINUTE:-15}"
+    TZ: Asia/Tokyo
+  volumes:
+    - "${JPJOBS_DATA_DIR:-/var/lib/jpjobs}:/data"
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,nosuid,size=1g
+  shm_size: 1gb
+  mem_limit: 3g
+  cpus: 2.0
+  pids_limit: 512
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  stop_grace_period: 2m
+
+services:
+  scheduler:
+    <<: *jpjobs-common
+    restart: unless-stopped
+    command: ["python", "-m", "jpjobs.scheduler"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import pathlib; assert b'jpjobs.scheduler' in pathlib.Path('/proc/1/cmdline').read_bytes()"
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  sync:
+    <<: *jpjobs-common
+    profiles: ["manual"]
+    command: ["/app/deploy/run-daily.sh"]
