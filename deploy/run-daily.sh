@@ -40,4 +40,12 @@ python -m jpjobs.backup \
     --database="${database}" \
     --output-dir="${backup_dir}" \
     --keep="${JPJOBS_BACKUP_KEEP:-14}"
+
+if [ -n "${KIKKAKE_INGEST_URL:-}" ] && [ -n "${KIKKAKE_INGEST_SECRET:-}" ]; then
+    python -m jpjobs.cloudflare_sync \
+        --database="${database}" \
+        --state="${state_dir}/kikkake-sync.json" \
+        --outbox="${data_dir}/outbox/kikkake"
+fi
+
 printf '%s\n' "${as_of}" > "${state_dir}/last-success"

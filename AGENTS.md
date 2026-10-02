@@ -1,118 +1,62 @@
-# AGENTS.md
+# Repository Guidelines
 
-If you're an AI assistant reading this, `jpjobs` lets you discover Japan job-board listings on behalf of your user. This document explains how to use it effectively without making assumptions about your user's setup.
+## Project Structure & Module Organization
 
-## What jpjobs is
+The installable Python package lives in `jpjobs/`. Core orchestration, schema,
+normalization, filtering, persistence, and output code are top-level modules;
+board-specific adapters belong in `jpjobs/sources/`, and shared HTTP or browser
+helpers belong in `jpjobs/util/`. Add new adapters by copying
+`jpjobs/sources/_template.py` and registering them in `aggregate.py`.
 
-A unified Python CLI that scrapes nine default Japan job boards (HelloWork,
-TokyoDev, JapanDev, GaijinPot, JobsInJapan, Daijob, Green, Forkwell, Wantedly)
-plus opt-in sources and normalizes the output into a single job schema.
-LinkedIn is intentionally opt-in because its public guest listings often lack
-actionable descriptions and compensation. The default `all` selection runs
-active sources only. No accounts or private API keys are required.
+Tests live in `tests/` and generally mirror a module or behavior
+(`tests/test_pagination.py`, for example). Use `experiments/` for reproducible
+analysis utilities, `docs/` for design and audit notes, and `deploy/` for the
+scheduled container workflow. Curated comparison outputs may be committed under
+`artifacts/`; local databases, checkpoints, HTML captures, and screenshots are
+ignored.
 
-## What to ask the user before scanning
-
-Don't assume — ask:
-
-1. **Keywords** — what role are they looking for? (e.g., "IT Support", "Helpdesk", "DevOps")
-2. **Location** — one of the 47 prefectures, or "all of Japan"?
-3. **Employment type** — fulltime / parttime / contract / freelance?
-4. **Language preference** — English-friendly only, or open to Japanese-required?
-5. **Resume** (optional) — only if they want jobs ranked against their experience
-
-## For Claude Code users
-
-Run via Bash, parse JSON. Recommended chain:
+## Build, Test, and Development Commands
 
 ```bash
-jpjobs --sources=hellowork,tokyodev \
-       --keyword="IT Support" \
-       --prefecture=tokyo \
-       --english-filter \
-       --pages=auto --max-pages=50 \
-       --fetch-details \
-       --format=json --output=/tmp/jobs.json
-
-# then:
-cat /tmp/jobs.json | jq '.jobs[] | select(.wage.min >= 300000)'
+python -m venv .venv && source .venv/bin/activate
+python -m pip install -e ".[dev]"
+playwright install chromium
+ruff check jpjobs tests experiments
+ruff format --check jpjobs tests experiments
+pytest -q
+jpjobs --list-sources
+docker compose build
 ```
 
-After fetching, ask the user for their resume only if they want matching or
-ranking.
+The editable install provides the CLI and test tools. Chromium is only required
+for browser-backed sources such as HelloWork. Run the Ruff checks and full test
+suite before opening a pull request; `docker compose build` validates the
+deployment image.
 
-## For ChatGPT / web-chat users
+## Coding Style & Naming Conventions
 
-The user runs the CLI on their machine with `--format=llm` and pastes the output
-into the chat. The export balances sources and includes available descriptions
-and language signals.
+Target Python 3.10 or newer, use four-space indentation and type annotations for
+new public interfaces, and keep lines within Ruff's 88-character limit. Use
+`snake_case` for modules, functions, variables, and source slugs; `PascalCase`
+for classes and dataclasses; and `UPPER_SNAKE_CASE` for constants. Format with
+`ruff format` and fix lint findings rather than suppressing them without a
+specific reason.
 
-## Unified job schema (every source returns this shape)
+## Testing Guidelines
 
-| Field                  | Type             | Notes |
-|------------------------|------------------|-------|
-| `id`                   | string           | Stable cross-source hash |
-| `source`               | string           | `hellowork`, `linkedin`, etc. |
-| `source_id`            | string           | Native ID from the source |
-| `url`                  | string           | Direct link to posting |
-| `found_on`             | array of string  | Sources that surfaced this job (dedup trail) |
-| `title`                | string           | Job title |
-| `company`              | string           | Employer name |
-| `description`          | string           | Full text where available |
-| `description_snippet`  | string           | ≤400 chars, LLM-safe |
-| `workplace`            | string           | Raw posting text |
-| `prefecture`           | string \| null   | `tokyo`, `osaka`, … |
-| `prefecture_name`      | string \| null   | `Tokyo` / `東京` |
-| `city`                 | string \| null   | |
-| `remote`               | boolean \| null  | |
-| `wage.min` / `.max`    | number \| null   | JPY |
-| `wage.unit`            | string \| null   | `monthly` / `hourly` / `annual` |
-| `wage.raw`             | string           | As posted |
-| `employment_type`      | string \| null   | `fulltime` / `parttime` / `contract` / `dispatch` / `freelance` / `intern` |
-| `date_posted`          | string \| null   | ISO8601 |
-| `language`             | array of string  | `english` / `japanese` / `bilingual` signals |
-| `matched_keyword`      | string \| null   | Which keyword surfaced this row |
-| `scraped_at`           | string           | ISO8601 |
+Pytest (with `pytest-asyncio`) is the test framework. Name files `test_*.py` and
+tests `test_<behavior>`. Keep tests deterministic: mock network and browser
+boundaries instead of relying on live job boards. There is no numeric coverage
+threshold, but changes should exercise success, empty, partial, and failure
+paths where applicable. CI runs linting, formatting, and tests on Python 3.10
+and 3.12.
 
-## Token-budget guidance
+## Commit & Pull Request Guidelines
 
-- `--format=llm` ≈ 40 tokens per job → 50 jobs ≈ 2K tokens
-- Raw JSON ≈ 200 tokens per job → 50 jobs ≈ 10K tokens
-- Filter aggressively before piping to context-constrained models
-
-## Common workflows
-
-1. **Find English-friendly Tokyo IT roles:**
-   `jpjobs --keyword="IT Support" --prefecture=tokyo --english-filter --format=llm`
-2. **Score against a resume:** scan → paste output + resume → use `prompts/rank-against-resume.md`
-3. **Research companies:** scan → use `prompts/extract-companies-for-research.md`
-4. **Daily diff:** save yesterday's JSON, diff against today's
-5. **Incremental store:** add `--database=jobs.sqlite3` to preserve first- and
-   last-seen timestamps
-6. **Daily lifecycle maintenance:** use an unfiltered `--pages=auto` scan with
-   `--database`, `--maintain-database`, and `--fetch-details-new-only`
-
-## Pitfalls for AI agents
-
-- **Don't hallucinate fields** not in the JSON — use null checks
-- **Don't fabricate URLs** — only cite `url` as given
-- **HelloWork URLs are session-bound** — if a URL fails, tell the user to search by `source_id` on hellowork.mhlw.go.jp
-- **A source returning empty doesn't mean "no jobs available"** — it can mean rate-limited or anti-bot
-- Check `per_source[].status`; it distinguishes no results, partial results,
-  blocks, parse failures, and other failures
-- Check `per_source[].coverage_complete` and `pagination_stop_reasons` before
-  claiming that a date window is fully covered
-- Strict date filtering excludes rows with unknown dates unless the user
-  explicitly supplies `--include-unknown-dates`
-- Never run `--maintain-database` on keyword, prefecture, employment, or
-  language-filtered results. Absence reconciliation requires a complete source
-  inventory and automatically skips partial, blocked, capped, and suddenly
-  collapsed source runs.
-- **The user's resume is NOT in this package** — always obtain it from the user directly
-
-## What jpjobs does NOT do
-
-- Apply to jobs on the user's behalf (always require explicit confirmation)
-- Store user data
-- Bypass authentication (Wantedly full apply, Bizreach, Findy, etc. are intentionally unsupported)
-- Replace human judgment about fit
+Follow the history's short, imperative commit style: `Add resumable pagination`
+or `Stabilize Ruff CI`. Keep each commit focused. Pull requests should explain
+the user-visible effect, identify affected sources or schema fields, link the
+relevant issue, and list exact verification commands. Include representative
+before/after output for parser or schema changes, and screenshots for generated
+HTML reports. Never commit `.env`, resumes, local databases, or scraped
+diagnostic captures.

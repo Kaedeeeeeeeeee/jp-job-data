@@ -11,6 +11,8 @@ x-jpjobs-common: &jpjobs-common
     JPJOBS_DATA_DIR: /data
     JPJOBS_SCHEDULE_HOUR: "${JPJOBS_SCHEDULE_HOUR:-3}"
     JPJOBS_SCHEDULE_MINUTE: "${JPJOBS_SCHEDULE_MINUTE:-15}"
+    KIKKAKE_INGEST_URL: "${KIKKAKE_INGEST_URL:-}"
+    KIKKAKE_INGEST_SECRET: "${KIKKAKE_INGEST_SECRET:-}"
     TZ: Asia/Tokyo
   volumes:
     - "${JPJOBS_DATA_DIR:-/var/lib/jpjobs}:/data"
